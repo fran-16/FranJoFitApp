@@ -59,6 +59,8 @@ dependencies {
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.ui.unit)
     implementation("com.google.android.material:material:1.12.0")
+    //Esta es la api de google
+    implementation("com.google.android.gms:play-services-auth:21.2.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 

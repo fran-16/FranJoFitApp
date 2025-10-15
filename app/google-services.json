@@ -12,7 +12,20 @@
           "package_name": "com.example.franjofit"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "451590140875-j0gjrfogtvpihk63if2gpt453dtg9set.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.franjofit",
+            "certificate_hash": "a97f8eeda3bcd285900f409bd68caba377e045bd"
+          }
+        },
+        {
+          "client_id": "451590140875-om7rhfa9k6a20rlafednmd9ov20a29q3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyDyhBkoSu6xJKZFQMrB-Vk_SaXSG_276qs"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "451590140875-om7rhfa9k6a20rlafednmd9ov20a29q3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

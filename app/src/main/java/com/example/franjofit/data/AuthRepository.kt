@@ -9,20 +9,17 @@ object AuthRepository {
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val db: FirebaseFirestore = Firebase.firestore // Firestore
 
-
     fun registerWithEmail(
         email: String,
         password: String,
         onSuccess: () -> Unit,
         onError: (Exception) -> Unit
     ) {
-
         auth.createUserWithEmailAndPassword(email, password)
             .addOnCompleteListener { task ->
                 if (task.isSuccessful) {
                     val user = auth.currentUser
                     if (user != null) {
-
                         saveUserEmail(user.uid, email, onSuccess, onError)
                     } else {
                         onError(Exception("Error al obtener el usuario después del registro"))
@@ -39,13 +36,22 @@ object AuthRepository {
         onSuccess: () -> Unit,
         onError: (Exception) -> Unit
     ) {
-
         db.collection("users").document(userId).set(mapOf("email" to email))
-            .addOnSuccessListener {
-                onSuccess()
-            }
-            .addOnFailureListener { e ->
-                onError(e)
-            }
+            .addOnSuccessListener { onSuccess() }
+            .addOnFailureListener { e -> onError(e) }
+    }
+
+    fun isUserRegistered(
+        uid: String,
+        onResult: (Boolean) -> Unit,
+        onError: (Exception) -> Unit
+    ) {
+        db.collection("users").document(uid).get()
+            .addOnSuccessListener { snap -> onResult(snap.exists()) }
+            .addOnFailureListener { e -> onError(e) }
+    }
+
+    fun signOut() {
+        auth.signOut()
     }
 }

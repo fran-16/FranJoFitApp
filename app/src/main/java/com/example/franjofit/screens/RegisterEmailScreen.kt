@@ -1,6 +1,9 @@
 package com.example.franjofit.screens
 
 import android.util.Log
+import android.app.Activity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -12,12 +15,16 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.example.franjofit.ui.components.OutlineInput
 import com.example.franjofit.ui.components.PrimaryButton
+import com.example.franjofit.ui.components.GoogleButton
 import com.example.franjofit.ui.theme.White
 import com.example.franjofit.ui.components.Spacing
 import com.example.franjofit.data.UserProfile
 import com.example.franjofit.ui.components.GradientBackground
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.android.gms.auth.api.signin.GoogleSignIn
+import com.google.android.gms.auth.api.signin.GoogleSignInOptions
+import com.google.firebase.auth.GoogleAuthProvider
 
 @Composable
 fun RegisterEmailScreen(
@@ -27,9 +34,81 @@ fun RegisterEmailScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
 
-    val auth = FirebaseAuth.getInstance() // Para registrar con Firebase Auth
-    val db = FirebaseFirestore.getInstance() // Para guardar el perfil en Firestore
+    val auth = FirebaseAuth.getInstance()
+    val db = FirebaseFirestore.getInstance()
+
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val activity = context as Activity
+    val clientId = remember { context.getString(com.example.franjofit.R.string.default_web_client_id) }
+
+    val gso = remember {
+        GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
+            .requestIdToken(clientId)
+            .requestEmail()
+            .build()
+    }
+    val googleClient = remember { GoogleSignIn.getClient(context, gso) }
+
+    val googleLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        try {
+            val task = GoogleSignIn.getSignedInAccountFromIntent(result.data)
+            val account = task.getResult(Exception::class.java)
+                ?: throw Exception("No se pudo obtener la cuenta de Google")
+
+            val credential = GoogleAuthProvider.getCredential(account.idToken, null)
+            auth.signInWithCredential(credential)
+                .addOnSuccessListener { authResult ->
+                    val user = authResult.user
+                    if (user == null) {
+                        error = "Auth succeeded but user null"
+                        return@addOnSuccessListener
+                    }
+
+                    val uid = user.uid
+                    val usersRef = db.collection("users").document(uid)
+                    usersRef.get()
+                        .addOnSuccessListener { doc ->
+                            if (!doc.exists()) {
+                                // crear perfil con displayName de pasos previos + datos de Google
+                                val profile = UserProfile(
+                                    uid = uid,
+                                    email = user.email ?: "",
+                                    displayName = if (displayName.isNotBlank()) displayName else (user.displayName ?: ""),
+                                    birthDate = "",
+                                    sex = "",
+                                    heightCm = null,
+                                    currentWeightKg = null
+                                )
+                                usersRef.set(profile)
+                                    .addOnSuccessListener { goToDashboard(navController) }
+                                    .addOnFailureListener { e ->
+                                        error = e.message
+                                        Log.e("RegisterGoogle", "Error creando perfil", e)
+                                    }
+                            } else {
+                                // ya existe => continuar
+                                goToDashboard(navController)
+                            }
+                        }
+                        .addOnFailureListener { e ->
+                            error = e.message
+                            Log.e("RegisterGoogle", "Error leyendo perfil", e)
+                        }
+                }
+                .addOnFailureListener { e ->
+                    error = e.message ?: "No se pudo registrar con Google"
+                    Log.e("RegisterGoogle", "signInWithCredential failed", e)
+                }
+        } catch (e: Exception) {
+            error = e.message ?: "Error al registrar con Google"
+            Log.e("RegisterGoogle", "Google launcher error", e)
+        }
+    }
 
     GradientBackground {
         Column(
@@ -54,9 +133,7 @@ fun RegisterEmailScreen(
                 placeholder = "Correo electrónico",
                 modifier = Modifier.fillMaxWidth()
             )
-
             Spacer(Modifier.height(Spacing.md))
-
 
             OutlineInput(
                 value = password,
@@ -65,9 +142,7 @@ fun RegisterEmailScreen(
                 isPassword = true,
                 modifier = Modifier.fillMaxWidth()
             )
-
             Spacer(Modifier.height(Spacing.md))
-
 
             OutlineInput(
                 value = confirmPassword,
@@ -82,43 +157,69 @@ fun RegisterEmailScreen(
             PrimaryButton(
                 text = "Registrar",
                 onClick = {
-                    if (email.isNotEmpty() && password.isNotEmpty() && password == confirmPassword) {
-                        // Crear usuario en Firebase Authentication
-                        auth.createUserWithEmailAndPassword(email, password)
-                            .addOnCompleteListener { task ->
-                                if (task.isSuccessful) {
-                                    // Crear el perfil del usuario en Firestore
-                                    val user = auth.currentUser
-                                    val userProfile = UserProfile(
-                                        uid = user?.uid ?: "",
-                                        email = email,
-                                        displayName = displayName,
-                                        birthDate = "", // Se puede dejar vacío o añadir
-                                        sex = "", // Se puede dejar vacío
-                                        heightCm = null, // Se puede dejar vacío
-                                        currentWeightKg = null // Se puede dejar vacío
-                                    )
-                                    db.collection("users")
-                                        .document(user?.uid ?: "")
-                                        .set(userProfile)
-                                        .addOnSuccessListener {
-                                            // After successful registration, navigate to the Dashboard screen
-                                            navController.navigate(Routes.Dashboard) {
-                                                popUpTo(Routes.RegisterEmail) { inclusive = true }
-                                            }
-                                        }
-                                        .addOnFailureListener { e ->
-                                            Log.e("RegisterEmail", "Error al guardar el perfil: ${e.message}")
-                                        }
-                                } else {
-                                    Log.e("RegisterEmail", "Error al crear el usuario: ${task.exception?.message}")
-                                }
-                            }
-                    } else {
-                        Log.w("RegisterEmail", "Las contraseñas no coinciden o los campos están vacíos")
+                    error = null
+                    if (email.isBlank() || password.isBlank() || confirmPassword.isBlank()) {
+                        error = "Completa todos los campos"
+                        return@PrimaryButton
                     }
+                    if (password != confirmPassword) {
+                        error = "Las contraseñas no coinciden"
+                        return@PrimaryButton
+                    }
+
+                    auth.createUserWithEmailAndPassword(email, password)
+                        .addOnCompleteListener { task ->
+                            if (task.isSuccessful) {
+                                val user = auth.currentUser
+                                val profile = UserProfile(
+                                    uid = user?.uid ?: "",
+                                    email = email,
+                                    displayName = displayName,
+                                    birthDate = "",
+                                    sex = "",
+                                    heightCm = null,
+                                    currentWeightKg = null
+                                )
+                                db.collection("users")
+                                    .document(user?.uid ?: "")
+                                    .set(profile)
+                                    .addOnSuccessListener { goToDashboard(navController) }
+                                    .addOnFailureListener { e ->
+                                        error = e.message
+                                        Log.e("RegisterEmail", "Error guardando perfil", e)
+                                    }
+                            } else {
+                                error = task.exception?.message ?: "Error desconocido"
+                                Log.e("RegisterEmail", "Error creando usuario", task.exception)
+                            }
+                        }
                 }
             )
+
+            Spacer(Modifier.height(Spacing.lg))
+
+            GoogleButton(
+                text = "Registrar con Google",
+                onClick = {
+                    error = null
+                    // para forzar selector de cuenta
+                    googleClient.signOut().addOnCompleteListener {
+                        googleLauncher.launch(googleClient.signInIntent)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            if (error != null) {
+                Spacer(Modifier.height(Spacing.md))
+                Text(text = error ?: "", color = White)
+            }
         }
+    }
+}
+
+private fun goToDashboard(navController: NavController) {
+    navController.navigate(Routes.Dashboard) {
+        popUpTo(Routes.RegisterEmail) { inclusive = true }
     }
 }
