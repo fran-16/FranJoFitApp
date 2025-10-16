@@ -11,17 +11,18 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import kotlin.math.max
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class StepCounterManager(
     private val context: Context,
-    private val emulatorMode: Boolean = false  // <- pon true si quieres simular
+    private val emulatorMode: Boolean = false
 ) {
     private val sm = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
     private val prefs = context.getSharedPreferences("steps_prefs", Context.MODE_PRIVATE)
-    private val fmt = DateTimeFormatter.ISO_LOCAL_DATE
+    private val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)   // <- reemplaza DateTimeFormatter
 
     fun stepsTodayFlow(): Flow<Int> = callbackFlow {
         if (!hasPermission()) {
@@ -30,7 +31,7 @@ class StepCounterManager(
         }
 
         if (emulatorMode) {
-            // ----- MODO SIMULADOR: sube pasos cada 2s -----
+
             val t = object : Thread() {
                 var s = 0
                 override fun run() {
@@ -62,7 +63,7 @@ class StepCounterManager(
 
         val listener = object : SensorEventListener {
             override fun onSensorChanged(e: SensorEvent) {
-                val day = LocalDate.now().format(fmt)
+                val day = sdf.format(Date())
                 val keyBase = "baseline_$day"
 
                 when (e.sensor.type) {

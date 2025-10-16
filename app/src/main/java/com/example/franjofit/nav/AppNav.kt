@@ -17,7 +17,7 @@ fun AppNav() {
 
     NavHost(navController = navController, startDestination = Routes.Welcome) {
 
-        // Bienvenida
+
         composable(Routes.Welcome) {
             WelcomeScreen(
                 onSignUp = { navController.navigate(Routes.RegisterUsername) },
@@ -25,7 +25,7 @@ fun AppNav() {
             )
         }
 
-        // Login
+
         composable(Routes.Login) {
             LoginScreen(
                 onForgot   = { /* TODO */ },
@@ -38,7 +38,7 @@ fun AppNav() {
             )
         }
 
-        // Registro: username
+
         composable(Routes.RegisterUsername) {
             RegisterUsernameScreen(
                 onNext = { username ->
@@ -48,7 +48,7 @@ fun AppNav() {
             )
         }
 
-        // Registro: datos personales
+
         composable(
             route = Routes.RegisterPersonal,
             arguments = listOf(navArgument("username") { type = NavType.StringType })
@@ -60,14 +60,13 @@ fun AppNav() {
             )
         }
 
-        // Registro: metas
+
         composable(Routes.RegisterGoals) {
             RegisterGoalsScreen(
                 onContinue = { navController.navigate(Routes.RegisterEmail) }
             )
         }
 
-        // Registro: correo
         composable(
             route = Routes.RegisterEmail,
             arguments = listOf(navArgument("username") { type = NavType.StringType })
@@ -79,7 +78,7 @@ fun AppNav() {
             )
         }
 
-        // Perfil
+
         composable(Routes.Profile) {
             if (FirebaseAuth.getInstance().currentUser != null) {
                 ProfileScreen()
@@ -88,7 +87,7 @@ fun AppNav() {
             }
         }
 
-        // Dashboard (contenedor con tabs internas)
+
         composable(Routes.Dashboard) {
             DashboardScreen(
                 onAddWeight    = { /* TODO */ },
@@ -97,14 +96,14 @@ fun AppNav() {
             )
         }
 
-        // Añadir comida (desde Seguimiento)
+
         composable(
             route = Routes.AddMeal,
             arguments = listOf(navArgument("meal") { type = NavType.StringType })
         ) { entry ->
             val mealArg = entry.arguments?.getString("meal") ?: "desayuno"
 
-            // Recoger resultado que deja ScanFood al volver (vía savedStateHandle del entry actual)
+
             val savedStateHandle = entry.savedStateHandle
             val scanNameFlow    = savedStateHandle.getStateFlow("scan_name",    null as String?)
             val scanKcalFlow    = savedStateHandle.getStateFlow("scan_kcal",    null as Int?)
@@ -114,7 +113,7 @@ fun AppNav() {
             val scanKcal    by scanKcalFlow.collectAsState()
             val scanPortion by scanPortionFlow.collectAsState()
 
-            // Si hay resultado pendiente, lo procesamos como "Agregar" y limpiamos
+
             var pending by remember { mutableStateOf<FoodSuggestion?>(null) }
             LaunchedEffect(scanName, scanKcal, scanPortion) {
                 val n = scanName; val k = scanKcal; val p = scanPortion
@@ -127,18 +126,15 @@ fun AppNav() {
                 }
             }
 
-            // Render de la pantalla principal para agregar
+
             AddMealScreen(
                 mealKey = mealArg,
                 onBack  = { navController.popBackStack() },
                 onScan  = { navController.navigate("scan_food/$mealArg") },
-                onAddFood = { suggestion ->
-                    // TODO: guardar 'suggestion' en Firestore si quieres
-                    navController.popBackStack() // volver tras agregar
-                }
+               
             )
 
-            // Si vino algo del escaneo, ejecuta el mismo flujo que "Agregar" y vuelve
+
             pending?.let { suggestion ->
                 LaunchedEffect(suggestion) {
                     // TODO: guardar 'suggestion' si lo deseas
@@ -147,7 +143,6 @@ fun AppNav() {
             }
         }
 
-        // Pantalla de escaneo con IA (Gemini REST)
         composable(
             route = Routes.ScanFood,
             arguments = listOf(navArgument("meal") { type = NavType.StringType })

@@ -43,7 +43,7 @@ object recognizeWithOpenAI {
     ): String = withContext(Dispatchers.IO) {
         require(apiKey.isNotBlank()) { "OPENAI_API_KEY vacío" }
 
-        // 1) Downscale para reducir coste (máx 512 px)
+
         val maxDim = 512
         val w = bitmap.width
         val h = bitmap.height
@@ -52,7 +52,7 @@ object recognizeWithOpenAI {
             Bitmap.createScaledBitmap(bitmap, (w * scale).toInt(), (h * scale).toInt(), true)
         } else bitmap
 
-        // 2) Bitmap -> Base64
+
         val byteStream = java.io.ByteArrayOutputStream()
         scaledBmp.compress(Bitmap.CompressFormat.JPEG, 80, byteStream) // calidad 80
         val base64Image = android.util.Base64.encodeToString(
@@ -65,7 +65,7 @@ object recognizeWithOpenAI {
                     "{\"nombre\": string, \"kcal\": number, \"porcion\": string, \"confianza\": number 0..1}. " +
                     "Identifica las frutas visibles en la imagen y estima kcal y porción."
 
-        // 3) Limita tokens de salida
+
         val json = """
         {
           "model": "gpt-4o-mini",

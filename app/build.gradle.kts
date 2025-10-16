@@ -93,6 +93,18 @@ dependencies {
     // ✅ Otros helpers / imágenes
     implementation("androidx.activity:activity-ktx:1.9.0")
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("androidx.compose.material:material-icons-extended:1.7.5")
+    
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
+    implementation(platform("androidx.compose:compose-bom:2025.01.00"))
+
+    // UI base
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.material3:material3")
+
+    // Animations (sin versiones; las maneja el BOM)
+    implementation("androidx.compose.animation:animation")
+    implementation("androidx.compose.animation:animation-core")
 
     // ✅ Google Sign-In
     implementation("com.google.android.gms:play-services-auth:21.2.0")

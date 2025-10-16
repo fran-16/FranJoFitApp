@@ -12,12 +12,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.franjofit.data.FoodRepository
 import com.example.franjofit.ui.theme.DeepBlue
 import com.example.franjofit.ui.theme.Orange
 import com.example.franjofit.ui.theme.White
+import kotlinx.coroutines.launch
 
 data class FoodSuggestion(
     val name: String,
@@ -28,10 +31,9 @@ data class FoodSuggestion(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddMealScreen(
-    mealKey: String,
+    mealKey: String,                 // "desayuno" | "almuerzo" | "cena" | "extras"
     onBack: () -> Unit = {},
-    onScan: () -> Unit = {},
-    onAddFood: (FoodSuggestion) -> Unit = {}
+    onScan: () -> Unit = {}          // tu flujo de escaneo
 ) {
     val title = when (mealKey.lowercase()) {
         "desayuno" -> "Agregar desayuno"
@@ -40,9 +42,14 @@ fun AddMealScreen(
         else       -> "Agregar extras"
     }
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val snackbar = remember { SnackbarHostState() }
+    var isSaving by remember { mutableStateOf(false) }
+
     var query by remember { mutableStateOf("") }
 
-    // Sugerencias mock (conéctalas luego a Firestore/API)
+    // Sugerencias mock (conéctalas luego a Firestore/API si quieres autocompletar)
     val suggestions = remember {
         listOf(
             FoodSuggestion("Avena cocida", 150, "1 taza (240 ml)"),
@@ -65,7 +72,8 @@ fun AddMealScreen(
                     }
                 }
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbar) }
     ) { padding ->
         Column(
             modifier = Modifier
@@ -101,6 +109,7 @@ fun AddMealScreen(
 
                 FilledTonalButton(
                     onClick = onScan,
+                    enabled = !isSaving,
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = White.copy(0.12f),
                         contentColor = Orange
@@ -125,7 +134,28 @@ fun AddMealScreen(
                 items(filtered) { food ->
                     SuggestionCard(
                         item = food,
-                        onAdd = { onAddFood(food) }
+                        enabled = !isSaving,
+                        onAdd = {
+                            // 🔥 Guardar en Firestore usando FoodRepository
+                            scope.launch {
+                                try {
+                                    isSaving = true
+                                    // mealKey ya viene de la pantalla anterior (desayuno/almuerzo/...)
+                                    FoodRepository.addMealItem(
+                                        mealType = mealKey.lowercase(),
+                                        name = food.name,
+                                        kcal = food.kcal,
+                                        portion = food.portionLabel
+                                    )
+                                    snackbar.showSnackbar("${food.name} agregado a $mealKey")
+                                    onBack() // volver a la pantalla anterior (Dashboard)
+                                } catch (e: Exception) {
+                                    snackbar.showSnackbar("Error: ${e.message ?: "no se pudo guardar"}")
+                                } finally {
+                                    isSaving = false
+                                }
+                            }
+                        }
                     )
                 }
             }
@@ -136,6 +166,7 @@ fun AddMealScreen(
 @Composable
 private fun SuggestionCard(
     item: FoodSuggestion,
+    enabled: Boolean,
     onAdd: () -> Unit
 ) {
     Card(colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.15f))) {
@@ -153,6 +184,7 @@ private fun SuggestionCard(
             }
             FilledTonalButton(
                 onClick = onAdd,
+                enabled = enabled,
                 colors = ButtonDefaults.filledTonalButtonColors(
                     containerColor = Orange,
                     contentColor = White

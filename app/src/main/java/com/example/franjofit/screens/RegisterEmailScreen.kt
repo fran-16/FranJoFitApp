@@ -202,7 +202,7 @@ fun RegisterEmailScreen(
                 text = "Registrar con Google",
                 onClick = {
                     error = null
-                    // para forzar selector de cuenta
+
                     googleClient.signOut().addOnCompleteListener {
                         googleLauncher.launch(googleClient.signInIntent)
                     }

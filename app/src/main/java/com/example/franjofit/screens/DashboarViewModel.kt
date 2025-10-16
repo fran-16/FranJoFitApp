@@ -29,12 +29,12 @@ class DashboardViewModel(app: Application) : AndroidViewModel(app) {
     private val _ui = MutableStateFlow(DashboardUi())
     val ui: StateFlow<DashboardUi> = _ui
 
-    // 👉 pon emulatorMode=true solo para probar
+
     private val stepCounter = StepCounterManager(app.applicationContext, emulatorMode = false)
     private val repo = StepsRepository()
 
     init {
-        // fuerza una escritura la 1ra vez para confirmar BD (bórralo luego)
+
         viewModelScope.launch {
             try { repo.upsertToday(1234, _ui.value.stepsGoal); android.util.Log.d("StepsRepo","write test OK") }
             catch (e: Exception) { android.util.Log.e("StepsRepo","write test error", e) }
