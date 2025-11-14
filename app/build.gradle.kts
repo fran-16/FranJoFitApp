@@ -84,7 +84,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.webkit:webkit:1.4.0")
-
+    implementation("com.google.firebase:firebase-storage-ktx")
     // ✅ Firebase
     implementation(platform("com.google.firebase:firebase-bom:30.0.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
@@ -94,7 +94,7 @@ dependencies {
     implementation("androidx.activity:activity-ktx:1.9.0")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("androidx.compose.material:material-icons-extended:1.7.5")
-    
+    implementation("androidx.core:core-ktx:1.12.0")
         implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.8.1")
     implementation(platform("androidx.compose:compose-bom:2025.01.00"))
 
@@ -119,6 +119,7 @@ dependencies {
     implementation(libs.androidx.foundation)
     implementation(libs.androidx.ui.unit)
     implementation("com.google.android.material:material:1.12.0")
+    implementation(libs.androidx.ui.geometry)
 
     // ✅ Debug / Test
     debugImplementation("androidx.compose.ui:ui-tooling")

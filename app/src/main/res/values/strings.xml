@@ -1,3 +1,8 @@
 <resources>
     <string name="app_name">FranJoFit</string>
+
+    <!-- Web client ID de Firebase para Google Sign-In -->
+    <string name="default_web_client_id">
+        907502456597-opc1pq3ievgh1qh2205dlq88k965c9ep.apps.googleusercontent.com
+    </string>
 </resources>

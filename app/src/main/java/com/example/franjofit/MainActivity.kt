@@ -9,31 +9,47 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.example.franjofit.nav.AppNav
+import com.example.franjofit.reminders.SmpReminderManager
 import com.example.franjofit.ui.theme.FranJoTheme
 
 class MainActivity : ComponentActivity() {
 
     private val requestActivityRecognition =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* opcional: mostrar UI */ }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
+    private val requestNotificationPermission =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-// en MainActivity.onCreate
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            val granted = androidx.core.content.ContextCompat.checkSelfPermission(
-                this, android.Manifest.permission.ACTIVITY_RECOGNITION
+        // ACTIVITY_RECOGNITION
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val granted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACTIVITY_RECOGNITION
             ) == PackageManager.PERMISSION_GRANTED
-            if (!granted) {
-                registerForActivityResult(
-                    androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
-                ) { /* opcional log */ }
-                    .launch(android.Manifest.permission.ACTIVITY_RECOGNITION)
-            }
+
+            if (!granted) requestActivityRecognition.launch(Manifest.permission.ACTIVITY_RECOGNITION)
         }
 
+        // POST_NOTIFICATIONS
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val granted = ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+
+            if (!granted) requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        // PROGRAMAR RECORDATORIOS SMP
+        SmpReminderManager.scheduleRepeating(this)
+
         setContent {
-            FranJoTheme { AppNav() }
+            FranJoTheme {
+                AppNav()
+            }
         }
     }
 }

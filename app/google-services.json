@@ -1,41 +1,33 @@
 {
   "project_info": {
-    "project_number": "451590140875",
-    "project_id": "franjofit166",
-    "storage_bucket": "franjofit166.firebasestorage.app"
+    "project_number": "907502456597",
+    "project_id": "metafranjo",
+    "storage_bucket": "metafranjo.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:451590140875:android:34e94d2936cf2f71ddbc4e",
+        "mobilesdk_app_id": "1:907502456597:android:763815eb76b0a19449231c",
         "android_client_info": {
           "package_name": "com.example.franjofit"
         }
       },
       "oauth_client": [
         {
-          "client_id": "451590140875-j0gjrfogtvpihk63if2gpt453dtg9set.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.franjofit",
-            "certificate_hash": "a97f8eeda3bcd285900f409bd68caba377e045bd"
-          }
-        },
-        {
-          "client_id": "451590140875-om7rhfa9k6a20rlafednmd9ov20a29q3.apps.googleusercontent.com",
+          "client_id": "907502456597-opc1pq3ievgh1qh2205dlq88k965c9ep.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDyhBkoSu6xJKZFQMrB-Vk_SaXSG_276qs"
+          "current_key": "AIzaSyBnweYSxpO2QzFdCNjhYMdcIkMDa4750uk"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "451590140875-om7rhfa9k6a20rlafednmd9ov20a29q3.apps.googleusercontent.com",
+              "client_id": "907502456597-opc1pq3ievgh1qh2205dlq88k965c9ep.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

@@ -1,17 +1,22 @@
 package com.example.franjofit.screens
 
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -21,19 +26,14 @@ import com.example.franjofit.ui.theme.DeepBlue
 import com.example.franjofit.ui.theme.Orange
 import com.example.franjofit.ui.theme.White
 import kotlinx.coroutines.launch
-
-data class FoodSuggestion(
-    val name: String,
-    val kcal: Int,
-    val portionLabel: String
-)
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddMealScreen(
     mealKey: String,                 // "desayuno" | "almuerzo" | "cena" | "extras"
     onBack: () -> Unit = {},
-    onScan: () -> Unit = {}          // tu flujo de escaneo
+    onScan: () -> Unit = {}          // si luego conectas visión
 ) {
     val title = when (mealKey.lowercase()) {
         "desayuno" -> "Agregar desayuno"
@@ -46,21 +46,24 @@ fun AddMealScreen(
     val scope = rememberCoroutineScope()
     val snackbar = remember { SnackbarHostState() }
     var isSaving by remember { mutableStateOf(false) }
-
     var query by remember { mutableStateOf("") }
 
-    // Sugerencias mock (conéctalas luego a Firestore/API si quieres autocompletar)
-    val suggestions = remember {
-        listOf(
-            FoodSuggestion("Avena cocida", 150, "1 taza (240 ml)"),
-            FoodSuggestion("Pan integral", 80, "1 rebanada (28 g)"),
-            FoodSuggestion("Huevo cocido", 78, "1 unidad (50 g)"),
-            FoodSuggestion("Yogur natural", 120, "1 pote (150 g)"),
-            FoodSuggestion("Manzana", 95, "1 unidad (182 g)")
-        )
+    // Cargar TODO el catálogo desde el CSV (con porción sugerida y métricas)
+    var catalog by remember { mutableStateOf<List<FoodRepository.CatalogUiItem>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    LaunchedEffect(Unit) {
+        loading = true
+        runCatching { FoodRepository.listCatalogForUi(context) }
+            .onSuccess { catalog = it }
+            .onFailure { /* si quieres, dispara un snackbar */ }
+        loading = false
     }
-    val filtered = if (query.isBlank()) suggestions
-    else suggestions.filter { it.name.contains(query, ignoreCase = true) }
+
+    // Filtro por nombre
+    val filtered = remember(catalog, query) {
+        if (query.isBlank()) catalog
+        else catalog.filter { it.name.contains(query, ignoreCase = true) }
+    }
 
     Scaffold(
         topBar = {
@@ -115,48 +118,49 @@ fun AddMealScreen(
                         contentColor = Orange
                     ),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
-                ) {
-                    Text("Escanear")
-                }
+                ) { Text("Escanear") }
             }
 
             Text(
-                "Opciones recomendadas",
+                "Todos los alimentos",
                 color = White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
             )
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(filtered) { food ->
-                    SuggestionCard(
-                        item = food,
-                        enabled = !isSaving,
-                        onAdd = {
-                            // 🔥 Guardar en Firestore usando FoodRepository
-                            scope.launch {
-                                try {
-                                    isSaving = true
-                                    // mealKey ya viene de la pantalla anterior (desayuno/almuerzo/...)
-                                    FoodRepository.addMealItem(
-                                        mealType = mealKey.lowercase(),
-                                        name = food.name,
-                                        kcal = food.kcal,
-                                        portion = food.portionLabel
-                                    )
-                                    snackbar.showSnackbar("${food.name} agregado a $mealKey")
-                                    onBack() // volver a la pantalla anterior (Dashboard)
-                                } catch (e: Exception) {
-                                    snackbar.showSnackbar("Error: ${e.message ?: "no se pudo guardar"}")
-                                } finally {
-                                    isSaving = false
+            if (loading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Orange)
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    items(filtered, key = { it.name }) { food ->
+                        CatalogItemCard(
+                            item = food,
+                            enabled = !isSaving,
+                            onAdd = {
+                                scope.launch {
+                                    try {
+                                        isSaving = true
+                                        FoodRepository.addMealItemAuto(
+                                            context = context,
+                                            mealType = mealKey.lowercase(),
+                                            displayName = food.name
+                                        )
+                                        snackbar.showSnackbar("${food.name} agregado a $mealKey")
+                                        onBack()
+                                    } catch (e: Exception) {
+                                        snackbar.showSnackbar("Error: ${e.message ?: "no se pudo guardar"}")
+                                    } finally {
+                                        isSaving = false
+                                    }
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
         }
@@ -164,37 +168,108 @@ fun AddMealScreen(
 }
 
 @Composable
-private fun SuggestionCard(
-    item: FoodSuggestion,
+private fun CatalogItemCard(
+    item: FoodRepository.CatalogUiItem,
     enabled: Boolean,
     onAdd: () -> Unit
 ) {
-    Card(colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.15f))) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(item.name, color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                Spacer(Modifier.height(2.dp))
-                Text("${item.kcal} kcal • ${item.portionLabel}", color = White.copy(0.85f))
-            }
-            FilledTonalButton(
-                onClick = onAdd,
-                enabled = enabled,
-                colors = ButtonDefaults.filledTonalButtonColors(
-                    containerColor = Orange,
-                    contentColor = White
-                ),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+    var expanded by remember { mutableStateOf(false) }
+    val rot by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.15f)),
+        modifier = Modifier.animateContentSize()
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Filled.Add, contentDescription = "Agregar")
-                Spacer(Modifier.width(6.dp))
-                Text("Agregar")
+                Column(Modifier.weight(1f)) {
+                    Text(item.name, color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        "${item.kcal} kcal • ${item.portionLabel}",
+                        color = White.copy(0.85f)
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Filled.ExpandMore,
+                    contentDescription = "Ver detalles",
+                    tint = White,
+                    modifier = Modifier.rotate(rot)
+                )
             }
+
+            if (expanded) {
+                Divider(color = White.copy(0.1f))
+                MetricsGrid(item.preview)
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    FilledTonalButton(
+                        onClick = onAdd,
+                        enabled = enabled,
+                        colors = ButtonDefaults.filledTonalButtonColors(
+                            containerColor = Orange,
+                            contentColor = White
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Icon(Icons.Filled.Add, contentDescription = "Agregar")
+                        Spacer(Modifier.width(6.dp))
+                        Text("Agregar")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MetricsGrid(p: FoodRepository.PortionPreview) {
+    Column(Modifier.padding(all = 14.dp)) {
+        Text(
+            text = "Métricas de la porción",
+            color = White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Spacer(Modifier.height(8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MetricChip(label = "IG", value = p.ig.toString())
+            MetricChip(label = "Gramos", value = "${p.grams} g")
+            MetricChip(label = "GL", value = String.format(Locale.US, "%.1f", p.gl))
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MetricChip(label = "Carbohidratos", value = String.format(Locale.US, "%.1f g", p.carbsG))
+            MetricChip(label = "Proteína", value = String.format(Locale.US, "%.1f g", p.proteinG))
+            MetricChip(label = "Fibra", value = String.format(Locale.US, "%.1f g", p.fiberG))
+        }
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MetricChip(label = "Energía", value = "${p.kcal} kcal")
+        }
+    }
+}
+
+@Composable
+private fun MetricChip(label: String, value: String) {
+    Surface(color = White.copy(0.10f), shape = MaterialTheme.shapes.small) {
+        Column(
+            Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            horizontalAlignment = Alignment.Start
+        ) {
+            Text(label, color = White.copy(0.75f), fontSize = 11.sp)
+            Text(value, color = White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     }
 }

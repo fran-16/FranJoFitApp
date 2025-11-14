@@ -1,5 +1,6 @@
 package com.example.franjofit.data
 
+import android.R.attr.prompt
 import android.graphics.Bitmap
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -60,13 +61,14 @@ object recognizeWithOpenAI {
             android.util.Base64.NO_WRAP
         )
 
-        val prompt =
+        val promptText =
             "Devuélveme SOLO un JSON array (sin markdown). Cada elemento: " +
                     "{\"nombre\": string, \"kcal\": number, \"porcion\": string, \"confianza\": number 0..1}. " +
                     "Identifica las frutas visibles en la imagen y estima kcal y porción."
 
+        val promptEsc = org.json.JSONObject.quote(promptText)
 
-        val json = """
+                val json = """
         {
           "model": "gpt-4o-mini",
           "temperature": 0,
@@ -75,13 +77,15 @@ object recognizeWithOpenAI {
             {
               "role": "user",
               "content": [
-                {"type": "text", "text": "$prompt"},
-                {"type": "image_url", "image_url": {"url": "data:image/jpeg;base64,$base64Image"}}
+                { "type": "text", "text": $promptEsc },
+                { "type": "image_url", "image_url": { "url": "data:image/jpeg;base64,$base64Image" } }
               ]
             }
           ]
         }
         """.trimIndent()
+
+
 
         val request = Request.Builder()
             .url("https://api.openai.com/v1/chat/completions")

@@ -1,0 +1,53 @@
+id,nombre,ig,carbohidratos_g,proteina_g,fibra_g,kcal
+PAN_FRANCES,pan francés (blanco),75,49,9,3,265
+PAN_INTEGRAL,pan integral,50,41,13,7,260
+AVENA_COCIDA,avena cocida,55,12,2.4,1.7,71
+HUEVO_COCIDO,huevo cocido,0,0.6,13,0,155
+YOGUR_NATURAL_SIN_AZUCAR,yogur natural sin azúcar,35,4.7,3.5,0,61
+MANZANA,manzana,36,14,0.3,2.4,52
+BANANA,banana,52,23,1.1,2.6,96
+ARROZ_BLANCO_COCIDO,arroz blanco cocido,73,28,2.4,0.4,130
+ARROZ_INTEGRAL_COCIDO,arroz integral cocido,50,23,2.6,1.8,110
+PAPA_BLANCA_COCIDA,papa blanca cocida,82,17,2,2.2,87
+CAMOTE_COCIDO,camote cocido,61,20,1.6,3,90
+YUCA_SANCOCHADA,yuca sancochada,72,38,1.5,1.8,160
+QUINUA_COCIDA,quinua cocida,53,21,4.4,2.8,120
+AVENA_MAZAMORRA,avena (mazamorra),55,12,2.4,1.7,71
+FIDEO_BLANCO_COCIDO,fideo blanco cocido,61,25,5,1.3,131
+CHOCLO_COCIDO,choclo cocido,52,19,3.4,2.7,96
+CANCHA_TOSTADA,maíz cancha tostada,70,74,9,7,440
+LENTEJA_COCIDA,lenteja cocida,32,20,9,8,116
+FRIJOL_CANARIO_COCIDO,frijol canario cocido,35,21,8.7,6.4,127
+FRIJOL_NEGRO_COCIDO,frijol negro cocido,30,23,8.9,8.7,132
+GARBANZO_COCIDO,garbanzo cocido,28,27,8.6,7.6,164
+PLATANO,plátano,52,23,1.1,2.6,96
+PLATANO_MADURO_ASADO,plátano maduro asado,65,30,1.3,2.3,140
+NARANJA,naranja,43,12,0.9,2.4,47
+MANDARINA,mandarina,47,13,0.8,1.8,53
+UVA,uvas,59,17,0.6,0.9,69
+PAPAYA,papaya,60,10.8,0.5,1.7,43
+PINA,piña,59,13,0.5,1.4,50
+MANGO,mango,56,15,0.8,1.6,60
+ARANDANO,arándanos,53,14,0.7,2.4,57
+FRESA,fresas,41,7.7,0.7,2,32
+PALTA,palta,15,9,2,7,160
+TOMATE,tomate,38,3.9,0.9,1.2,18
+LECHUGA,lechuga,15,2.9,1.4,1.3,15
+ZANAHORIA,zanahoria cruda,35,10,0.9,2.8,41
+BROCOLI,brócoli,10,7,2.8,2.6,34
+ESPINACA,espinaca,15,3.6,2.9,2.2,23
+CEBOLLA,cebolla,10,9.3,1.1,1.7,40
+RES_MAGRA_COCIDA,res magra cocida,0,0,26,0,180
+POLLO_PECHUGA_COCIDA,pollo pechuga cocida,0,0,31,0,165
+PESCADO_COCIDO,pescado blanco cocido,0,0,22,0,120
+ATUN_EN_AGUA,atún en agua (lata),0,0,23,0,110
+LECHE_DESCREMADA,leche descremada,37,5,3.4,0,42
+QUESO_FRESCO,queso fresco,30,3.1,14,0,250
+MANI_TOSTADO,maní tostado,14,16,26,8.5,567
+ALMENDRAS,almendras,15,22,21,12,579
+NUECES,nueces,15,14,15,7,654
+AZUCAR,azúcar,65,100,0,0,387
+MIEL,miel,58,82,0.3,0,304
+GASEOSA_AZUCARADA,gaseosa azucarada,65,10.6,0,0,42
+JUGO_NARANJA_AZUCARADO,jugo de naranja azucarado,57,12,0.5,0.2,48
+CHICHA_MORADA_AZUCARADA,chicha morada azucarada,60,11,0.2,0.3,45
