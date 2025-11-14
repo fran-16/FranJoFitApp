@@ -456,6 +456,9 @@ fun DashboardScreen(
             when (selectedIndex) {
                 0 -> {
                     val remaining = (dailyGoal.baseGoal - dailyGoal.consumed).coerceAtLeast(0)
+                    val totalGl = remember(meals) {
+                        meals.values.flatten().sumOf { (it["gl"] as? Double) ?: 0.0 }
+                    }
                     PrincipalContent(
                         smpScore = smpDay,
                         pendingCount = pendingCount,
@@ -467,6 +470,7 @@ fun DashboardScreen(
                         stepsGoal = uiState.value.stepsGoal,
                         exerciseMinutes = uiState.value.exerciseMinutes,
                         lastWeight = lastWeight,
+                        totalGl = totalGl,  // AÑADIDO
                         onAddWeightClick = { showWeightDialog = true },
 
                         onEditGoal = { newGoal ->
@@ -675,11 +679,12 @@ private fun PrincipalContent(
     stepsGoal: Int,
     exerciseMinutes: Int,
     lastWeight: Float?,
+    totalGl: Double,  // AÑADIDO
     onAddWeightClick: () -> Unit,
     onEditGoal: (Int) -> Unit,
-    stories: List<StoryItem>,           // 👈 AHORA
+    stories: List<StoryItem>,
     onStoryClick: (Int) -> Unit,
-    onSeeMoreStories: () -> Unit        // 👈 ya estaba, lo dejamos aquí
+    onSeeMoreStories: () -> Unit
 ) {
 
     Column(
@@ -700,6 +705,34 @@ private fun PrincipalContent(
             remaining = remaining,
             onEditBaseGoal = onEditGoal
         )
+
+        Spacer(Modifier.height(12.dp))
+
+// EXTRA: GL TOTAL DEL DÍA
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.10f)),
+            shape = MaterialTheme.shapes.medium
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 18.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(text = "GL total del día",
+                    color = White,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Medium)
+                Text(
+                    text = String.format("%.1f", totalGl),
+                    color = Orange,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+        }
 
         Spacer(Modifier.height(12.dp))
 
@@ -780,14 +813,16 @@ private fun PrincipalContent(
     }
 }
 
-
 @Composable
 private fun TrackingContent(
     meals: Map<String, List<Map<String, Any>>>,
     onAddItem: (String) -> Unit
 ) {
     val totalKcal = remember(meals) {
-        meals.values.flatten().sumOf { (it["kcal"] as? Long ?: 0L).toInt() }
+        meals.values.flatten().sumOf { (it["kcal"] as? Long)?.toInt() ?: 0 }
+    }
+    val totalGl = remember(meals) {
+        meals.values.flatten().sumOf { (it["gl"] as? Double) ?: 0.0 }
     }
 
     LazyColumn(
@@ -799,7 +834,8 @@ private fun TrackingContent(
         item {
             DayHeaderCard(
                 totalKcal = totalKcal,
-                remaining = (2200 - totalKcal).coerceAtLeast(0)
+                remaining = (2200 - totalKcal).coerceAtLeast(0),
+                totalGl = totalGl
             )
         }
 
@@ -808,12 +844,7 @@ private fun TrackingContent(
                 val list = meals[type].orEmpty()
                 MealSectionCard(
                     title = type.replaceFirstChar { it.uppercase() },
-                    items = list.map {
-                        MealItem(
-                            name = it["name"] as? String ?: "Sin nombre",
-                            kcal = (it["kcal"] as? Long ?: 0L).toInt()
-                        )
-                    },
+                    items = list,  // <-- directo, sin mapear a MealItem
                     onAdd = { onAddItem(type) }
                 )
             }
@@ -822,22 +853,22 @@ private fun TrackingContent(
 }
 
 @Composable
-private fun DayHeaderCard(totalKcal: Int, remaining: Int) {
+private fun DayHeaderCard(totalKcal: Int, remaining: Int, totalGl: Double) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.15f))
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text("Calorías del día", color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text("Resumen del día", color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Column {
-                    Text("Consumidas", color = White.copy(0.9f), fontSize = 13.sp)
-                    Text("$totalKcal kcal", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text("GL total", color = White.copy(0.9f), fontSize = 13.sp)
+                    Text(String.format("%.1f", totalGl), color = Orange, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("Restantes", color = White.copy(0.9f), fontSize = 13.sp)
-                    Text("${remaining.coerceAtLeast(0)} kcal", color = Orange, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text("Calorías", color = White.copy(0.9f), fontSize = 13.sp)
+                    Text("$totalKcal kcal", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -847,10 +878,12 @@ private fun DayHeaderCard(totalKcal: Int, remaining: Int) {
 @Composable
 private fun MealSectionCard(
     title: String,
-    items: List<MealItem>,
+    items: List<Map<String, Any>>,
     onAdd: () -> Unit
 ) {
-    val total = items.sumOf { it.kcal }
+    val totalGl = items.sumOf { (it["gl"] as? Double) ?: 0.0 }
+    val totalKcal = items.sumOf { (it["kcal"] as? Long)?.toInt() ?: 0 }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.15f))
@@ -863,45 +896,90 @@ private fun MealSectionCard(
             ) {
                 Column {
                     Text(title, color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text("$total kcal", color = White.copy(0.9f), fontSize = 13.sp)
+                    Text(
+                        "GL total: ${String.format("%.1f", totalGl)}",
+                        color = Orange,
+                        fontWeight = FontWeight.Medium,
+                        fontSize = 14.sp
+                    )
                 }
                 Button(
                     onClick = onAdd,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Orange)
-                ) { Text("Agregar", color = White) }
-            }
-            Spacer(Modifier.height(8.dp))
-            if (items.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(MaterialTheme.shapes.medium)
-                        .background(White.copy(alpha = 0.07f))
-                        .padding(14.dp)
-                ) { Text("Sin ítems aún", color = White.copy(0.75f)) }
-            } else {
-                items.forEachIndexed { index, item ->
-                    MealRow(item)
-                    if (index != items.lastIndex) Divider(
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        color = White.copy(alpha = 0.12f)
-                    )
+                ) {
+                    Text("Agregar", color = White)
                 }
             }
+
+            Spacer(Modifier.height(12.dp))
+
+            if (items.isEmpty()) {
+                Text("Sin ítems aún", color = White.copy(0.7f), fontSize = 14.sp)
+            } else {
+                items.forEach { item ->
+                    MealRow(item)
+                    if (item != items.last()) {
+                        Divider(color = White.copy(0.1f), modifier = Modifier.padding(vertical = 6.dp))
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "$totalKcal kcal",
+                color = White.copy(0.6f),
+                fontSize = 13.sp,
+                modifier = Modifier.align(Alignment.End)
+            )
         }
     }
 }
 
 @Composable
-private fun MealRow(item: MealItem) {
+private fun MealRow(item: Map<String, Any>) {
     Row(
-        Modifier.fillMaxWidth(),
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(item.name, color = White, fontSize = 15.sp)
-        Text("${item.kcal} kcal", color = White.copy(0.9f), fontSize = 14.sp)
+        Column {
+            Text(
+                text = item["name"] as? String ?: "Alimento",
+                color = White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Row {
+                Text(
+                    text = "IG ${item["ig"]}",
+                    color = Orange,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(Modifier.width(20.dp))
+                Text(
+                    text = "GL ${(item["gl"] as? Double)?.let { String.format("%.1f", it) } ?: "0"}",
+                    color = Orange,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        Column(horizontalAlignment = Alignment.End) {
+            Text(
+                text = "${item["kcal"]} kcal",
+                color = White.copy(0.6f),
+                fontSize = 12.sp
+            )
+            Text(
+                text = item["portion_text"] as? String ?: "",
+                color = White.copy(0.7f),
+                fontSize = 11.sp
+            )
+        }
     }
 }
 

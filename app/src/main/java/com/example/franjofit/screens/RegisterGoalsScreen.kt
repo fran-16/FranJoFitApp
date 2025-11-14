@@ -31,11 +31,11 @@ fun RegisterGoalsScreen(onContinue: () -> Unit) {
             )
             Spacer(Modifier.height(Spacing.xl))
 
-            CheckItem("Perder peso", g1) { g1 = it }
-            CheckItem("Ganar músculo y fuerza", g2) { g2 = it }
-            CheckItem("Tonificar y definir mi cuerpo", g3) { g3 = it }
-            CheckItem("Mantenerme saludable", g4) { g4 = it }
-            CheckItem("Mejorar resistencia y energía", g5) { g5 = it }
+            CheckItem("Prevenir o revertir prediabetes", g1) { g1 = it }
+            CheckItem("Mejorar sensibilidad a la insulina", g2) { g2 = it }
+            CheckItem("Reducir grasa visceral (abdomen)", g3) { g3 = it }
+            CheckItem("Estabilizar glucosa post-comida", g4) { g4 = it }
+            CheckItem("Aumentar energía y reducir fatiga", g5) { g5 = it }
 
             Spacer(Modifier.height(Spacing.xl))
             PrimaryButton("Continuar", onContinue)
