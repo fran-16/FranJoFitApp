@@ -33,7 +33,12 @@ import java.util.Locale
 fun AddMealScreen(
     mealKey: String,                 // "desayuno" | "almuerzo" | "cena" | "extras"
     onBack: () -> Unit = {},
-    onScan: () -> Unit = {}          // si luego conectas visión
+    onScan: () -> Unit = {},
+
+    // 🔥 Estos vienen desde NAV (resultado del scan)
+    scannedName: String? = null,
+    scannedKcal: Int? = null,
+    scannedPortion: String? = null
 ) {
     val title = when (mealKey.lowercase()) {
         "desayuno" -> "Agregar desayuno"
@@ -48,18 +53,30 @@ fun AddMealScreen(
     var isSaving by remember { mutableStateOf(false) }
     var query by remember { mutableStateOf("") }
 
-    // Cargar TODO el catálogo desde el CSV (con porción sugerida y métricas)
+    // ======================
+    // Cargar Catálogo
+    // ======================
     var catalog by remember { mutableStateOf<List<FoodRepository.CatalogUiItem>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     LaunchedEffect(Unit) {
         loading = true
         runCatching { FoodRepository.listCatalogForUi(context) }
             .onSuccess { catalog = it }
-            .onFailure { /* si quieres, dispara un snackbar */ }
         loading = false
     }
 
-    // Filtro por nombre
+    // ======================
+    // 🔥 TRATAMIENTO DE SCAN (Highlight)
+    // ======================
+    val highlightItem = remember(scannedName, catalog) {
+        catalog.firstOrNull {
+            it.name.equals(scannedName ?: "", ignoreCase = true)
+        }
+    }
+
+    // ======================
+    // Filtro de búsqueda
+    // ======================
     val filtered = remember(catalog, query) {
         if (query.isBlank()) catalog
         else catalog.filter { it.name.contains(query, ignoreCase = true) }
@@ -78,6 +95,7 @@ fun AddMealScreen(
         },
         snackbarHost = { SnackbarHost(hostState = snackbar) }
     ) { padding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -86,6 +104,9 @@ fun AddMealScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // ======================
+            // Barra de búsqueda + scan
+            // ======================
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -128,6 +149,40 @@ fun AddMealScreen(
                 fontWeight = FontWeight.SemiBold
             )
 
+            // ======================
+            // 🔥 ITEM DESTACADO DEL ESCANEO
+            // ======================
+            if (highlightItem != null) {
+                CatalogItemCard(
+                    item = FoodRepository.CatalogUiItem(
+                        name = highlightItem.name,
+                        portionLabel = scannedPortion ?: highlightItem.portionLabel,
+                        kcal = scannedKcal ?: highlightItem.kcal,
+                        preview = highlightItem.preview
+                    ),
+                    enabled = !isSaving,
+                    onAdd = {
+                        scope.launch {
+                            try {
+                                isSaving = true
+                                FoodRepository.addMealItemAuto(
+                                    context = context,
+                                    mealType = mealKey.lowercase(),
+                                    displayName = highlightItem.name
+                                )
+                                snackbar.showSnackbar("${highlightItem.name} agregado a $mealKey")
+                                onBack()
+                            } catch (e: Exception) {
+                                snackbar.showSnackbar("Error: ${e.message ?: "no se pudo guardar"}")
+                            } finally {
+                                isSaving = false
+                            }
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             if (loading) {
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = Orange)
@@ -166,6 +221,10 @@ fun AddMealScreen(
         }
     }
 }
+
+// ========================================================================
+// TARJETAS E ITEM UI
+// ========================================================================
 
 @Composable
 private fun CatalogItemCard(

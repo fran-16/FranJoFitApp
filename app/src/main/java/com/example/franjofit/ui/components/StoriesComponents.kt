@@ -11,28 +11,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.franjofit.components.story.StoryItem
-import com.example.franjofit.ui.theme.Orange
-import com.example.franjofit.ui.theme.White
+import com.example.franjofit.ui.theme.CardBackground
+import com.example.franjofit.ui.theme.CardBorderSoft
 
 @Composable
 fun StoriesRow(
-    items: List<StoryItem>,          // 👈 AHORA RECIBE StoryItem
+    items: List<StoryItem>,          // historias
     onClickStory: (Int) -> Unit,     // índice de la historia
     onSeeMore: () -> Unit
 ) {
     Column {
-        Text(
-            "Historias y salud",
-            color = White,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
-
-        Spacer(Modifier.height(10.dp))
+        // 👇 Ya NO dibujamos aquí "Historias y salud"
+        // ese título lo pone la tarjeta padre en PrincipalContent
 
         Row(
             modifier = Modifier
@@ -70,35 +66,49 @@ fun StoryCard(
             .clip(RoundedCornerShape(16.dp))
             .padding(bottom = 2.dp)
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.12f)),
-        shape = RoundedCornerShape(16.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = CardBackground      // 💙 mismo fondo que las demás tarjetas
+        ),
+        shape = RoundedCornerShape(16.dp),
+        border = CardDefaults.outlinedCardBorder().copy(
+            width = 1.dp,
+            brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                listOf(CardBorderSoft, CardBorderSoft)
+            )
+        )
     ) {
         Column {
-            // 🔥 IMAGEN REAL ARRIBA
+            // Imagen arriba
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(110.dp)
-                    .background(White.copy(alpha = 0.08f)),
+                    .background(CardBackground),
                 contentAlignment = Alignment.Center
             ) {
                 if (!imageUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = imageUrl,
                         contentDescription = title,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
                     )
                 } else {
-                    Text("Imagen", color = White.copy(0.6f))
+                    Text(
+                        "Imagen",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        fontSize = 12.sp
+                    )
                 }
             }
 
             Spacer(Modifier.height(10.dp))
 
             Text(
-                title,
-                color = White,
+                text = title,
+                color = MaterialTheme.colorScheme.onSurface,   // 👈 texto oscuro, visible
                 fontWeight = FontWeight.SemiBold,
+                fontSize = 13.sp,
                 modifier = Modifier.padding(horizontal = 10.dp)
             )
         }
@@ -113,15 +123,27 @@ fun MoreStoriesButton(onClick: () -> Unit) {
             .height(190.dp)
             .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(containerColor = Orange.copy(alpha = 0.2f)),
-        shape = RoundedCornerShape(16.dp)
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+        ),
+        shape = RoundedCornerShape(16.dp),
+        border = CardDefaults.outlinedCardBorder().copy(
+            width = 1.dp,
+            brush = androidx.compose.ui.graphics.Brush.linearGradient(
+                listOf(CardBorderSoft, CardBorderSoft)
+            )
+        )
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text("Ver más", color = Orange, fontWeight = FontWeight.Bold)
+            Text(
+                "Ver más",
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

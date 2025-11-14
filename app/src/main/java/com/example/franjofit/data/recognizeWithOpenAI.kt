@@ -1,6 +1,5 @@
 package com.example.franjofit.data
 
-import android.R.attr.prompt
 import android.graphics.Bitmap
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -42,9 +41,10 @@ object recognizeWithOpenAI {
         bitmap: Bitmap,
         apiKey: String
     ): String = withContext(Dispatchers.IO) {
+
         require(apiKey.isNotBlank()) { "OPENAI_API_KEY vacío" }
 
-
+        // === reduce resolución para evitar errores y ahorrar tokens ===
         val maxDim = 512
         val w = bitmap.width
         val h = bitmap.height
@@ -53,26 +53,47 @@ object recognizeWithOpenAI {
             Bitmap.createScaledBitmap(bitmap, (w * scale).toInt(), (h * scale).toInt(), true)
         } else bitmap
 
-
+        // === convertir a base64 ===
         val byteStream = java.io.ByteArrayOutputStream()
-        scaledBmp.compress(Bitmap.CompressFormat.JPEG, 80, byteStream) // calidad 80
+        scaledBmp.compress(Bitmap.CompressFormat.JPEG, 80, byteStream)
         val base64Image = android.util.Base64.encodeToString(
             byteStream.toByteArray(),
             android.util.Base64.NO_WRAP
         )
 
-        val promptText =
-            "Devuélveme SOLO un JSON array (sin markdown). Cada elemento: " +
-                    "{\"nombre\": string, \"kcal\": number, \"porcion\": string, \"confianza\": number 0..1}. " +
-                    "Identifica las frutas visibles en la imagen y estima kcal y porción."
+        // === prompt nuevo profesional ===
+        val promptText = """
+Eres un asistente nutricional experto.
+
+Analiza la imagen y detecta **TODOS los alimentos presentes**:
+- En un plato, bandeja, vaso, tazón, mesa o fondo.
+- Aunque estén parcialmente visibles.
+
+Devuelve **ÚNICAMENTE un JSON array**, sin texto adicional ni markdown:
+[
+  {
+    "nombre": "nombre del alimento",
+    "kcal": calorías estimadas de la cantidad visible,
+    "porcion": "descripción de la porción visible (ej: '1 unidad', '1 taza', '150 g')",
+    "confianza": número entre 0 y 1
+  }
+]
+
+Reglas:
+- Múltiples alimentos = múltiples objetos.
+- Estima kcal de lo que realmente se ve.
+- Si un alimento aparece varias veces, ajusta porción y kcal.
+- Si no hay alimentos, devuelve: [].
+""".trimIndent()
 
         val promptEsc = org.json.JSONObject.quote(promptText)
 
-                val json = """
+        // === request JSON ===
+        val json = """
         {
           "model": "gpt-4o-mini",
           "temperature": 0,
-          "max_tokens": 150,
+          "max_tokens": 300,
           "messages": [
             {
               "role": "user",
@@ -85,8 +106,6 @@ object recognizeWithOpenAI {
         }
         """.trimIndent()
 
-
-
         val request = Request.Builder()
             .url("https://api.openai.com/v1/chat/completions")
             .addHeader("Authorization", "Bearer $apiKey")
@@ -96,14 +115,16 @@ object recognizeWithOpenAI {
 
         try {
             client.newCall(request).execute().use { resp ->
+
                 val bodyStr = resp.body?.string().orEmpty()
                 Log.d(TAG, "HTTP ${resp.code} ${resp.message}")
                 Log.d(TAG, "Body: $bodyStr")
 
-                // si es rate limit, envía un json claro para la UI
+                // limite de uso
                 if (resp.code == 429 || bodyStr.contains("Rate limit", ignoreCase = true)) {
-                    return@use """{"error":"Has alcanzado el límite de uso de la API. Espera un rato o añade método de pago en Billing."}"""
+                    return@use """{"error":"Has alcanzado el límite de la API."}"""
                 }
+
                 bodyStr.ifBlank { """{"error":"respuesta_vacia"}""" }
             }
         } catch (e: Exception) {

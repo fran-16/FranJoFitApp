@@ -12,145 +12,169 @@ import com.google.firebase.auth.FirebaseAuth
 
 @Composable
 fun AppNav() {
-    val controladorNavegacion = rememberNavController()
+
+    val nav = rememberNavController()
 
     NavHost(
-        navController = controladorNavegacion,
+        navController = nav,
         startDestination = Routes.Welcome
     ) {
 
-        // Bienvenida
+        // =====================================
+        // WELCOME
+        // =====================================
         composable(Routes.Welcome) {
             WelcomeScreen(
-                onSignUp = { controladorNavegacion.navigate(Routes.RegisterUsername) },
-                onLogin  = { controladorNavegacion.navigate(Routes.Login) }
+                onSignUp = { nav.navigate(Routes.RegisterUsername) },
+                onLogin = { nav.navigate(Routes.Login) }
             )
         }
 
-        // Login
+        // =====================================
+        // LOGIN
+        // =====================================
         composable(Routes.Login) {
             LoginScreen(
-                onForgot   = { /* TODO: recuperar contraseña */ },
-                onGoogle   = { /* TODO: login con Google */ },
+                onForgot = {},
+                onGoogle = {},
                 onLoggedIn = {
-                    controladorNavegacion.navigate(Routes.Dashboard) {
+                    nav.navigate(Routes.Dashboard) {
                         popUpTo(Routes.Login) { inclusive = true }
                     }
                 }
             )
         }
 
-        // Registro - usuario
+        // =====================================
+        // REGISTRO 1
+        // =====================================
         composable(Routes.RegisterUsername) {
             RegisterUsernameScreen(
-                onNext = { nombreUsuario ->
-                    val seguro = Uri.encode(nombreUsuario.trim())
-                    controladorNavegacion.navigate("register_personal/$seguro")
+                onNext = { username ->
+                    val safe = Uri.encode(username.trim())
+                    nav.navigate("register_personal/$safe")
                 }
             )
         }
 
-        // Registro - datos personales
+        // =====================================
+        // REGISTRO 2
+        // =====================================
         composable(
             route = Routes.RegisterPersonal,
             arguments = listOf(navArgument("username") { type = NavType.StringType })
-        ) { entrada ->
-            val nombreUsuario = entrada.arguments?.getString("username").orEmpty()
+        ) { entry ->
+            val username = entry.arguments?.getString("username") ?: ""
             RegisterPersonalScreen(
-                username = nombreUsuario,
-                onNext   = { controladorNavegacion.navigate(Routes.RegisterGoals) }
+                username = username,
+                onNext = { nav.navigate(Routes.RegisterGoals) }
             )
         }
 
-        // Registro - metas
+        // =====================================
+        // REGISTRO 3 (METAS)
+        // =====================================
         composable(Routes.RegisterGoals) {
             RegisterGoalsScreen(
-                onContinue = { controladorNavegacion.navigate(Routes.RegisterEmail) }
+                onContinue = { nav.navigate(Routes.RegisterEmail) }
             )
         }
 
-        // Registro - email
+        // =====================================
+        // REGISTRO 4 (EMAIL)
+        // =====================================
         composable(
             route = Routes.RegisterEmail,
             arguments = listOf(navArgument("username") { type = NavType.StringType })
-        ) { entrada ->
-            val nombreUsuario = entrada.arguments?.getString("username").orEmpty()
+        ) { entry ->
+            val username = entry.arguments?.getString("username") ?: ""
             RegisterEmailScreen(
-                displayName  = nombreUsuario,
-                navController = controladorNavegacion
+                displayName = username,
+                navController = nav
             )
         }
 
-        // Perfil
+        // =====================================
+        // PERFIL
+        // =====================================
         composable(Routes.Profile) {
             if (FirebaseAuth.getInstance().currentUser != null) {
                 ProfileScreen()
             } else {
-                controladorNavegacion.navigate(Routes.Login)
+                nav.navigate(Routes.Login)
             }
         }
 
-        // Dashboard
+        // =====================================
+        // DASHBOARD
+        // =====================================
         composable(Routes.Dashboard) {
             DashboardScreen(
-                onAddWeight    = { /* TODO: agregar peso */ },
-                onOpenProfile  = { controladorNavegacion.navigate(Routes.Profile) },
-                onOpenAddMeal  = { claveComida ->
-                    controladorNavegacion.navigate("add_meal/$claveComida")
+                onAddWeight = {},
+                onOpenProfile = { nav.navigate(Routes.Profile) },
+                onOpenAddMeal = { mealKey ->
+                    nav.navigate("add_meal/$mealKey")
                 }
             )
         }
 
-        // Agregar comida (buscador + catálogo CSV)
+        // =====================================
+        // ADD MEAL (con HIGHLIGHT desde escaneo)
+        // =====================================
         composable(
             route = Routes.AddMeal,
             arguments = listOf(navArgument("meal") { type = NavType.StringType })
-        ) { entrada ->
-            val claveComida = entrada.arguments?.getString("meal") ?: "desayuno"
+        ) { entry ->
 
-            // Recibir datos del resultado de escaneo (si existieran)
-            val estadoGuardado = entrada.savedStateHandle
-            val flujoNombreEscaneo  = estadoGuardado.getStateFlow("scan_name",    null as String?)
-            val flujoKcalEscaneo    = estadoGuardado.getStateFlow("scan_kcal",    null as Int?)
-            val flujoPorcionEscaneo = estadoGuardado.getStateFlow("scan_portion", null as String?)
+            val mealKey = entry.arguments?.getString("meal") ?: "desayuno"
 
-            val nombreEscaneo  by flujoNombreEscaneo.collectAsState()
-            val kcalEscaneo    by flujoKcalEscaneo.collectAsState()
-            val porcionEscaneo by flujoPorcionEscaneo.collectAsState()
+            // Recuperar datos del scan (si existen)
+            val handle = entry.savedStateHandle
 
-            // Si llega un resultado de escaneo, podrías auto-seleccionar o mostrar destacado.
-            // Por ahora solo limpiamos para no re-disparar.
-            LaunchedEffect(nombreEscaneo, kcalEscaneo, porcionEscaneo) {
-                if (nombreEscaneo != null || kcalEscaneo != null || porcionEscaneo != null) {
-                    estadoGuardado.set("scan_name", null)
-                    estadoGuardado.set("scan_kcal", null)
-                    estadoGuardado.set("scan_portion", null)
+            val scannedName by handle.getStateFlow("scan_name", null as String?).collectAsState()
+            val scannedKcal by handle.getStateFlow("scan_kcal", null as Int?).collectAsState()
+            val scannedPortion by handle.getStateFlow("scan_portion", null as String?).collectAsState()
+
+            // Limpiar para evitar re-trigger
+            LaunchedEffect(scannedName, scannedKcal, scannedPortion) {
+                if (scannedName != null || scannedKcal != null || scannedPortion != null) {
+                    handle["scan_name"] = null
+                    handle["scan_kcal"] = null
+                    handle["scan_portion"] = null
                 }
             }
 
             AddMealScreen(
-                mealKey = claveComida,
-                onBack  = { controladorNavegacion.popBackStack() },
-                onScan  = { controladorNavegacion.navigate("scan_food/$claveComida") }
+                mealKey = mealKey,
+                onBack = { nav.popBackStack() },
+                onScan = { nav.navigate("scan_food/$mealKey") },
+                scannedName = scannedName,
+                scannedKcal = scannedKcal,
+                scannedPortion = scannedPortion
             )
         }
 
-        // Escanear alimento (visión)
+        // =====================================
+        // SCAN FOOD
+        // =====================================
         composable(
             route = Routes.ScanFood,
             arguments = listOf(navArgument("meal") { type = NavType.StringType })
-        ) {
+        ) { entry ->
+
+            val mealKey = entry.arguments?.getString("meal") ?: "desayuno"
+
             ScanFoodScreen(
-                onCancel = { controladorNavegacion.popBackStack() },
-                onUseResult = { nombre, kcal, porcion ->
-                    controladorNavegacion.previousBackStackEntry
-                        ?.savedStateHandle
-                        ?.apply {
-                            set("scan_name", nombre)
-                            set("scan_kcal", kcal)
-                            set("scan_portion", porcion)
-                        }
-                    controladorNavegacion.popBackStack()
+                onCancel = { nav.popBackStack() },
+                onUseResult = { name, kcal, portion ->
+
+                    nav.previousBackStackEntry?.savedStateHandle?.apply {
+                        this["scan_name"] = name
+                        this["scan_kcal"] = kcal
+                        this["scan_portion"] = portion
+                    }
+
+                    nav.popBackStack()
                 }
             )
         }

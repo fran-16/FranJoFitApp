@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.franjofit.components.story.StoryItem
@@ -54,8 +55,16 @@ import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
-import com.example.franjofit.ui.components.StoriesRow
+import com.example.franjofit.ui.theme.BorderBlue
+import com.example.franjofit.ui.theme.CardBackground
+import com.example.franjofit.ui.theme.CardBorderSoft
 
+import com.example.franjofit.ui.components.StoriesRow
+import com.example.franjofit.ui.theme.LightCardBlue
+
+import com.example.franjofit.ui.theme.ScreenBackground
+import com.example.franjofit.ui.theme.StoryCardBlue
+import com.example.franjofit.ui.theme.TextColorDarkBlue
 
 // =========================
 // NUEVO: SMP (Score) + Semáforo
@@ -131,40 +140,79 @@ fun TrafficLight(
     }
 }
 
-/** Tarjeta SMP + semáforo. */
 @Composable
 fun SmpSummaryCard(
     score: Int,
     pendingCount: Int
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.15f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, CardBorderSoft, MaterialTheme.shapes.large),   // borde celeste suave
+        colors = CardDefaults.cardColors(
+            containerColor = CardBackground                              // 💙 mismo fondo que calorías
+        ),
         shape = MaterialTheme.shapes.large
     ) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            TrafficLight(score = score)
+        Row(
+            Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            // 🌟 Semáforo dentro de un marco suave
+            Box(
+                modifier = Modifier
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    .padding(8.dp)
+            ) {
+                TrafficLight(score = score)
+            }
+
             Spacer(Modifier.width(16.dp))
+
             Column(Modifier.weight(1f)) {
-                Text("SMP del día: $score", color = White, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+
+                // Título
+                Text(
+                    text = "SMP del día: $score",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+
                 Spacer(Modifier.height(6.dp))
+
+                // Texto de explicación
                 Text(
                     text = when (smpColorFrom(score)) {
                         SmpColor.GREEN -> "Verde: vas muy bien, mantén fibra/proteína."
-                        SmpColor.AMBER -> "Ámbar: OK, pero ajusta porciones o camina 10–15’."
+                        SmpColor.AMBER -> "Ámbar: OK, ajusta porciones o camina 10–15 min."
                         SmpColor.RED   -> "Rojo: alta carga glucémica hoy, prueba swaps."
                     },
-                    color = White.copy(0.9f),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                     fontSize = 13.sp
                 )
+
+                // Chip de pendientes (si hay)
                 if (pendingCount > 0) {
                     Spacer(Modifier.height(10.dp))
+
                     AssistChip(
-                        onClick = { /* TODO */ },
-                        label = { Text("📩 $pendingCount pendiente${if (pendingCount>1) "s" else ""} a 90’") },
+                        onClick = { /* TODO abrir lista de pendientes */ },
+                        label = {
+                            Text(
+                                text = "📩 $pendingCount pendiente${
+                                    if (pendingCount > 1) "s" else ""
+                                } a 90’",
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        },
                         colors = AssistChipDefaults.assistChipColors(
-                            labelColor = White,
-                            containerColor = White.copy(alpha = 0.10f)
+                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                         )
                     )
                 }
@@ -172,6 +220,7 @@ fun SmpSummaryCard(
         }
     }
 }
+
 
 // =========================
 // Tu código (con avatar mini en AppBar)
@@ -213,10 +262,9 @@ fun SmpAssistantBot(modifier: Modifier = Modifier, onClick: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
 
-            // ⭐ Robot 3D super simple (ojos + brillo)
+
             Canvas(modifier = Modifier.fillMaxSize()) {
 
-                // Cabeza ovalada
                 drawRoundRect(
                     color = Color(0xFF1E1E1E),
                     size = size * 0.9f,
@@ -224,7 +272,6 @@ fun SmpAssistantBot(modifier: Modifier = Modifier, onClick: () -> Unit) {
                     topLeft = Offset(size.width * 0.05f, size.height * 0.12f)
                 )
 
-                // Ojos
                 drawCircle(
                     color = Color.Cyan,
                     radius = size.width * 0.12f,
@@ -236,7 +283,6 @@ fun SmpAssistantBot(modifier: Modifier = Modifier, onClick: () -> Unit) {
                     center = Offset(size.width * 0.65f, size.height * 0.48f)
                 )
 
-                // Reflejo tipo 3D
                 drawCircle(
                     color = Color.White.copy(alpha = 0.22f),
                     radius = size.width * 0.35f,
@@ -353,7 +399,6 @@ fun DashboardScreen(
         )
     )
 
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -363,7 +408,8 @@ fun DashboardScreen(
                             1 -> "Seguimiento • Hoy"
                             2 -> "Progreso"
                             else -> "Hola ${uiState.value.username}"
-                        }
+                        },
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 },
                 navigationIcon = {
@@ -375,42 +421,67 @@ fun DashboardScreen(
                                 modifier = Modifier
                                     .size(32.dp)
                                     .clip(CircleShape)
-                                    .border(1.dp, White.copy(0.6f), CircleShape)
+                                    .border(
+                                        1.dp,
+                                        MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                                        CircleShape
+                                    )
                             )
                         } else {
                             Icon(
                                 imageVector = Icons.Filled.AccountCircle,
                                 contentDescription = "Perfil de usuario",
-                                tint = White
+                                tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
                     }
                 },
                 actions = {
                     BadgedBox(
-                        badge = { if (pendingCount > 0) Badge { Text(pendingCount.toString()) } }
+                        badge = {
+                            if (pendingCount > 0) {
+                                Badge {
+                                    Text(
+                                        pendingCount.toString(),
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                }
+                            }
+                        }
                     ) {
                         IconButton(onClick = onOpenReminders) {
                             Icon(
                                 imageVector = Icons.Filled.Notifications,
-                                contentDescription = "Pendientes/recordatorios a 90’"
+                                contentDescription = "Pendientes/recordatorios a 90’",
+                                tint = MaterialTheme.colorScheme.onPrimary
                             )
                         }
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,    // 💙 celeste
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
         },
         bottomBar = {
-            NavigationBar(containerColor = DeepBlue, tonalElevation = 0.dp) {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.primary,        // 💙 celeste
+                tonalElevation = 0.dp
+            ) {
                 NavigationBarItem(
                     selected = selectedIndex == 0,
                     onClick = { selectedIndex = 0 },
                     icon = { Icon(Icons.Filled.Home, contentDescription = "Principal") },
                     label = { Text("Principal") },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Orange, selectedTextColor = Orange,
-                        unselectedIconColor = White.copy(0.85f), unselectedTextColor = White.copy(0.85f),
-                        indicatorColor = White.copy(0.10f)
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        indicatorColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
                     )
                 )
                 NavigationBarItem(
@@ -419,9 +490,11 @@ fun DashboardScreen(
                     icon = { Icon(Icons.Filled.List, contentDescription = "Seguimiento") },
                     label = { Text("Seguimiento") },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Orange, selectedTextColor = Orange,
-                        unselectedIconColor = White.copy(0.85f), unselectedTextColor = White.copy(0.85f),
-                        indicatorColor = White.copy(0.10f)
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        indicatorColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
                     )
                 )
                 NavigationBarItem(
@@ -430,29 +503,25 @@ fun DashboardScreen(
                     icon = { Icon(Icons.Filled.Star, contentDescription = "Progreso") },
                     label = { Text("Progreso") },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = Orange, selectedTextColor = Orange,
-                        unselectedIconColor = White.copy(0.85f), unselectedTextColor = White.copy(0.85f),
-                        indicatorColor = White.copy(0.10f)
+                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                        selectedTextColor = MaterialTheme.colorScheme.onPrimary,
+                        unselectedIconColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        unselectedTextColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+                        indicatorColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
                     )
                 )
             }
         }
-    ) { padding ->
+    )
+ { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(DeepBlue)
+                .background(ScreenBackground)
                 .padding(padding)
         ) {
             // ⭐⭐⭐ AÑADE ESTE BLOQUE AQUÍ (ANTES DEL WHEN)
-            SmpAssistantBot(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = 90.dp)
-            ) {
-                // Acción al tocar el bot (por ahora abre un "modo chat")
-                selectedIndex = 99
-            }
+
             when (selectedIndex) {
                 0 -> {
                     val remaining = (dailyGoal.baseGoal - dailyGoal.consumed).coerceAtLeast(0)
@@ -507,8 +576,17 @@ fun DashboardScreen(
                 startIndex = startStoryIndex,
                 onClose = { showStory = false }
             )
+            SmpAssistantBot(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = 90.dp)
+                    .zIndex(3f)
+            ) {
+                selectedIndex = 99
+            }
         }
     }
+
     // ====================== DIÁLOGO AGREGAR PESO ======================
     if (showWeightDialog) {
         var text by remember { mutableStateOf("") }
@@ -703,53 +781,96 @@ private fun PrincipalContent(
 
         Spacer(Modifier.height(12.dp))
 
-        // 🔥 Pasos + ejercicio
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // PASOS
             Card(
-                modifier = Modifier.weight(1f),
-                colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.15f))
+                modifier = Modifier
+                    .weight(1f)
+                    .border(1.dp, CardBorderSoft, MaterialTheme.shapes.medium),
+                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                shape = MaterialTheme.shapes.medium
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Pasos: $steps", color = White)
-                    Text("Meta: $stepsGoal", color = White)
+                    Text(
+                        "Pasos",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Pasos: $steps",
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "Meta: $stepsGoal",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+                    )
                 }
             }
+
+            // EJERCICIO
             Card(
-                modifier = Modifier.weight(1f),
-                colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.15f))
+                modifier = Modifier
+                    .weight(1f)
+                    .border(1.dp, CardBorderSoft, MaterialTheme.shapes.medium),
+                colors = CardDefaults.cardColors(containerColor = CardBackground),
+                shape = MaterialTheme.shapes.medium
             ) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("Ejercicio: $exercise cal", color = White)
-                    Text("Tiempo: $exerciseMinutes min", color = White)
+                    Text(
+                        "Ejercicio",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Ejercicio: $exercise cal",
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        "Tiempo: $exerciseMinutes min",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+                    )
                 }
             }
         }
+
 
         Spacer(Modifier.height(12.dp))
 
         // 🔥 Peso
         // 🔥 Peso con último registro mostrado
         Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.15f))
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(1.dp, CardBorderSoft, MaterialTheme.shapes.large),
+            colors = CardDefaults.cardColors(containerColor = CardBackground),
+            shape = MaterialTheme.shapes.large
         ) {
             Column(Modifier.padding(16.dp)) {
-                Text("Peso (últimos 90 días)", color = White)
+                Text(
+                    "Peso (últimos 90 días)",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold
+                )
 
                 Spacer(Modifier.height(6.dp))
 
                 if (lastWeight != null) {
                     Text(
                         "Último registro: ${"%.1f".format(lastWeight)} kg",
-                        color = Orange,
+                        color = MaterialTheme.colorScheme.primary,    // celeste
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
                 } else {
-                    Text("Aún no registras tu peso", color = White.copy(0.8f))
+                    Text(
+                        "Aún no registras tu peso",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+                    )
                 }
 
                 Spacer(Modifier.height(12.dp))
@@ -757,23 +878,52 @@ private fun PrincipalContent(
                 Button(
                     onClick = onAddWeightClick,
                     modifier = Modifier.fillMaxWidth(),
-                    colors = ButtonDefaults.buttonColors(containerColor = Orange)
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
                 ) {
-                    Text("Agregar peso", color = White)
+                    Text(
+                        "Agregar peso",
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
                 }
             }
         }
 
 
+
         Spacer(Modifier.height(18.dp))
+// ⭐⭐⭐ Tarjeta Historias en celeste (un poco más fuerte)
+// ⭐⭐⭐ Tarjeta de Historias con mismo celeste que las otras tarjetas
+        // ⭐⭐⭐ Tarjeta Historias con MISMO estilo que las demás
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .border(1.dp, CardBorderSoft, MaterialTheme.shapes.large),
+            colors = CardDefaults.cardColors(
+                containerColor = CardBackground          // 👈 mismo color que Peso / SMP
+            ),
+            shape = MaterialTheme.shapes.large
+        ) {
+            Column(Modifier.padding(16.dp)) {
 
-        // ⭐⭐⭐ Carrusel de historias
-        StoriesRow(
-            items = stories,
-            onClickStory = onStoryClick,
-            onSeeMore = onSeeMoreStories
-        )
+                Text(
+                    text = "Historias y salud",
+                    color = MaterialTheme.colorScheme.onSurface,  // 👈 texto oscuro, no blanco
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
 
+                Spacer(Modifier.height(12.dp))
+
+                StoriesRow(
+                    items = stories,
+                    onClickStory = onStoryClick,
+                    onSeeMore = onSeeMoreStories
+                )
+            }
+        }
 
 
         Spacer(Modifier.height(40.dp)) // un poco de espacio al final
@@ -824,25 +974,58 @@ private fun TrackingContent(
 @Composable
 private fun DayHeaderCard(totalKcal: Int, remaining: Int) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.15f))
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, CardBorderSoft, MaterialTheme.shapes.large),
+        colors = CardDefaults.cardColors(containerColor = CardBackground),
+        shape = MaterialTheme.shapes.large
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text("Calorías del día", color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Calorías del día",
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
             Spacer(Modifier.height(8.dp))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
                 Column {
-                    Text("Consumidas", color = White.copy(0.9f), fontSize = 13.sp)
-                    Text("$totalKcal kcal", color = White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Consumidas",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        "$totalKcal kcal",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
+
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("Restantes", color = White.copy(0.9f), fontSize = 13.sp)
-                    Text("${remaining.coerceAtLeast(0)} kcal", color = Orange, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        "Restantes",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        "${remaining.coerceAtLeast(0)} kcal",
+                        color = MaterialTheme.colorScheme.primary,         // celeste 💙
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
             }
         }
     }
 }
+
 
 @Composable
 private fun MealSectionCard(
@@ -851,42 +1034,77 @@ private fun MealSectionCard(
     onAdd: () -> Unit
 ) {
     val total = items.sumOf { it.kcal }
+
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.15f))
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, CardBorderSoft, MaterialTheme.shapes.large),
+        colors = CardDefaults.cardColors(containerColor = CardBackground),
+        shape = MaterialTheme.shapes.large
     ) {
         Column(Modifier.padding(16.dp)) {
+
+            // Título + botón Agregar
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column {
-                    Text(title, color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text("$total kcal", color = White.copy(0.9f), fontSize = 13.sp)
+                    Text(
+                        title,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "$total kcal",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                        fontSize = 13.sp
+                    )
                 }
+
                 Button(
                     onClick = onAdd,
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Orange)
-                ) { Text("Agregar", color = White) }
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary   // 💙 celeste
+                    )
+                ) {
+                    Text(
+                        "Agregar",
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
             }
+
             Spacer(Modifier.height(8.dp))
+
             if (items.isEmpty()) {
+                // Estado vacío visible en tema claro
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(MaterialTheme.shapes.medium)
-                        .background(White.copy(alpha = 0.07f))
+                        .background(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                        )
                         .padding(14.dp)
-                ) { Text("Sin ítems aún", color = White.copy(0.75f)) }
+                ) {
+                    Text(
+                        "Sin ítems aún",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
+                }
             } else {
                 items.forEachIndexed { index, item ->
                     MealRow(item)
-                    if (index != items.lastIndex) Divider(
-                        modifier = Modifier.padding(vertical = 8.dp),
-                        color = White.copy(alpha = 0.12f)
-                    )
+                    if (index != items.lastIndex) {
+                        Divider(
+                            modifier = Modifier.padding(vertical = 8.dp),
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                        )
+                    }
                 }
             }
         }
@@ -900,8 +1118,16 @@ private fun MealRow(item: MealItem) {
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(item.name, color = White, fontSize = 15.sp)
-        Text("${item.kcal} kcal", color = White.copy(0.9f), fontSize = 14.sp)
+        Text(
+            item.name,
+            color = MaterialTheme.colorScheme.onSurface,
+            fontSize = 15.sp
+        )
+        Text(
+            "${item.kcal} kcal",
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+            fontSize = 14.sp
+        )
     }
 }
 
@@ -931,38 +1157,71 @@ private fun CalorieGoalCard(
     var showDialog by remember { mutableStateOf(false) }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.15f)),
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, CardBorderSoft, MaterialTheme.shapes.large), // borde suave celeste
+        colors = CardDefaults.cardColors(
+            containerColor = CardBackground  // fondo off-white azulado
+        ),
         shape = MaterialTheme.shapes.large
     ) {
-        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(modifier = Modifier.size(130.dp), contentAlignment = Alignment.Center) {
-                CalorieLavaRing(progress = progress, bgAlpha = 0.2f)
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+
+            // ⭐ ARO CALÓRICO CEL ESTE
+            Box(
+                modifier = Modifier.size(130.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CalorieLavaRing(
+                    progress = progress,
+                    bgAlpha = 0.20f,
+                    color = MaterialTheme.colorScheme.primary     // CELESTE 💙
+                )
+
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "$remaining", color = White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        text = "$remaining",
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
                     Text(
                         text = "kcal\nrestantes",
-                        color = White.copy(0.85f),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center,
                         lineHeight = 14.sp
                     )
                 }
             }
+
             Spacer(Modifier.width(16.dp))
+
             Column(Modifier.weight(1f)) {
-                Text("Calorías", color = White)
+
+                Text(
+                    "Calorías",
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium
+                )
+
                 Spacer(Modifier.height(8.dp))
+
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
-
                 ) {
-                    Text("Objetivo base:", color = White.copy(0.9f))
+                    Text(
+                        "Objetivo base:",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                    )
                     Text(
                         "$baseGoal kcal",
-                        color = Orange,
+                        color = MaterialTheme.colorScheme.primary, // CELESTE
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier
                             .clip(MaterialTheme.shapes.small)
@@ -970,9 +1229,17 @@ private fun CalorieGoalCard(
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
+
                 Spacer(Modifier.height(4.dp))
-                Text("Consumido: ${(progress * baseGoal).toInt()} kcal", color = White.copy(0.9f))
-                Text("Restantes: $remaining kcal", color = White.copy(0.9f))
+
+                Text(
+                    "Consumido: ${(progress * baseGoal).toInt()} kcal",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                )
+                Text(
+                    "Restantes: $remaining kcal",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f)
+                )
             }
         }
     }
@@ -992,28 +1259,44 @@ private fun CalorieGoalCard(
 @Composable
 private fun CalorieLavaRing(
     progress: Float,
-    bgAlpha: Float = 0.15f
+    bgAlpha: Float = 0.15f,
+    color: Color
 ) {
     val infinite = rememberInfiniteTransition()
     val rotation by infinite.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
-        animationSpec = infiniteRepeatable(animation = tween(4000, easing = LinearEasing))
+        animationSpec = infiniteRepeatable(
+            animation = tween(4000, easing = LinearEasing)
+        )
     )
+
     val wavePhase by infinite.animateFloat(
         initialValue = 0f,
-        targetValue = (2f * PI).toFloat(),
-        animationSpec = infiniteRepeatable(animation = tween(1800, easing = LinearEasing))
+        targetValue = (2f * Math.PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = LinearEasing)
+        )
     )
-    val animatedProgress by animateFloatAsState(targetValue = progress.coerceIn(0f, 1f), animationSpec = tween(600), label = "ringProgress")
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress.coerceIn(0f, 1f),
+        animationSpec = tween(600),
+        label = "ringProgress"
+    )
 
     Canvas(modifier = Modifier.fillMaxSize()) {
+
         val stroke = 16.dp.toPx()
         val sizeArc = Size(size.minDimension - stroke, size.minDimension - stroke)
-        val topLeft = Offset((this.size.width - sizeArc.width) / 2, (this.size.height - sizeArc.height) / 2)
+        val topLeft = Offset(
+            (this.size.width - sizeArc.width) / 2,
+            (this.size.height - sizeArc.height) / 2
+        )
 
+        // Aro gris azulado de fondo
         drawArc(
-            color = White.copy(bgAlpha),
+            color = color.copy(alpha = bgAlpha * 0.6f),
             startAngle = 0f,
             sweepAngle = 360f,
             useCenter = false,
@@ -1022,9 +1305,16 @@ private fun CalorieLavaRing(
             style = Stroke(width = stroke, cap = StrokeCap.Round)
         )
 
+        // ARO PRINCIPAL CELESTE 💙
         val brush = Brush.sweepGradient(
-            colors = listOf(Orange.copy(alpha = 0.2f), Orange, Orange.copy(alpha = 0.6f), Orange)
+            colors = listOf(
+                color.copy(alpha = 0.20f),
+                color.copy(alpha = 0.90f),
+                color.copy(alpha = 0.45f),
+                color.copy(alpha = 0.90f)
+            )
         )
+
         drawArc(
             brush = brush,
             startAngle = -90f + rotation,
@@ -1035,11 +1325,12 @@ private fun CalorieLavaRing(
             style = Stroke(width = stroke, cap = StrokeCap.Round)
         )
 
+        // Puntito animado → “lava”
         if (animatedProgress > 0.05f) {
             val r = sizeArc.width / 2
             val cx = topLeft.x + r
             val cy = topLeft.y + r
-            val angle = (-90f + animatedProgress * 360f) * (PI / 180).toFloat()
+            val angle = (-90f + animatedProgress * 360f) * (Math.PI / 180).toFloat()
             val edgeX = cx + r * cos(angle)
             val edgeY = cy + r * sin(angle)
 
@@ -1048,9 +1339,15 @@ private fun CalorieLavaRing(
                 val wobble = 8.dp.toPx() * sin(wavePhase)
                 relativeQuadraticBezierTo(-wobble, -wobble, -wobble * 2, wobble)
             }
+
             drawPath(
                 path = path,
-                brush = Brush.linearGradient(listOf(Orange, Orange.copy(0.4f))),
+                brush = Brush.linearGradient(
+                    listOf(
+                        color,
+                        color.copy(alpha = 0.4f)
+                    )
+                ),
                 style = Stroke(4.dp.toPx(), cap = StrokeCap.Round)
             )
         }
