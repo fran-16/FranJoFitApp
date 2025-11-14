@@ -28,14 +28,15 @@ import com.example.franjofit.ui.theme.White
 import kotlinx.coroutines.launch
 import java.util.Locale
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddMealScreen(
-    mealKey: String,                 // "desayuno" | "almuerzo" | "cena" | "extras"
+    mealKey: String,
     onBack: () -> Unit = {},
     onScan: () -> Unit = {},
 
-    // 🔥 Estos vienen desde NAV (resultado del scan)
+    // 🔥 Desde ScanFood
     scannedName: String? = null,
     scannedKcal: Int? = null,
     scannedPortion: String? = null
@@ -43,57 +44,112 @@ fun AddMealScreen(
     val title = when (mealKey.lowercase()) {
         "desayuno" -> "Agregar desayuno"
         "almuerzo" -> "Agregar almuerzo"
-        "cena"     -> "Agregar cena"
-        else       -> "Agregar extras"
+        "cena" -> "Agregar cena"
+        else -> "Agregar extras"
     }
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
     val snackbar = remember { SnackbarHostState() }
     var isSaving by remember { mutableStateOf(false) }
-    var query by remember { mutableStateOf("") }
 
-    // ======================
-    // Cargar Catálogo
-    // ======================
-    var catalog by remember { mutableStateOf<List<FoodRepository.CatalogUiItem>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    LaunchedEffect(Unit) {
-        loading = true
-        runCatching { FoodRepository.listCatalogForUi(context) }
-            .onSuccess { catalog = it }
-        loading = false
-    }
+    // ======================================================
+    // 🔥 LISTA TEMPORAL DE ALIMENTOS ELEGIDOS (MULTIPLE)
+    // ======================================================
+    var selectedItems by remember { mutableStateOf<List<FoodRepository.CatalogUiItem>>(emptyList()) }
 
-    // ======================
-    // 🔥 TRATAMIENTO DE SCAN (Highlight)
-    // ======================
-    val highlightItem = remember(scannedName, catalog) {
-        catalog.firstOrNull {
-            it.name.equals(scannedName ?: "", ignoreCase = true)
+    // Si viene desde Scan → añadir automáticamente
+    LaunchedEffect(scannedName, scannedKcal, scannedPortion) {
+        if (scannedName != null) {
+            selectedItems = selectedItems + FoodRepository.CatalogUiItem(
+                name = scannedName,
+                portionLabel = scannedPortion ?: "100 g",
+                kcal = scannedKcal ?: 100,
+                preview = FoodRepository.PortionPreview(
+                    ig = 0,
+                    grams = 100,
+                    carbsG = 0.0,
+                    proteinG = 0.0,
+                    fiberG = 0.0,
+                    kcal = scannedKcal ?: 100,
+                    gl = 0.0
+                )
+            )
         }
     }
 
-    // ======================
-    // Filtro de búsqueda
-    // ======================
+    // ======================================================
+    // Cargar catálogo CSV
+    // ======================================================
+    var catalog by remember { mutableStateOf<List<FoodRepository.CatalogUiItem>>(emptyList()) }
+    var loading by remember { mutableStateOf(true) }
+    var query by remember { mutableStateOf("") }
+
+    LaunchedEffect(Unit) {
+        loading = true
+        try {
+            catalog = FoodRepository.listCatalogForUi(context)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            catalog = emptyList()
+        }
+        loading = false
+    }
+
+
+
     val filtered = remember(catalog, query) {
         if (query.isBlank()) catalog
         else catalog.filter { it.name.contains(query, ignoreCase = true) }
     }
 
+    // ======================================================
+    // UI
+    // ======================================================
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text(title) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = "Volver")
+                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
                     }
                 }
             )
         },
-        snackbarHost = { SnackbarHost(hostState = snackbar) }
+        snackbarHost = { SnackbarHost(hostState = snackbar) },
+
+        // 🔥 BOTÓN CONFIRMAR AL FINAL
+        bottomBar = {
+            if (selectedItems.isNotEmpty()) {
+                Button(
+                    onClick = {
+                        scope.launch {
+                            try {
+                                isSaving = true
+                                FoodRepository.saveMealItems(
+                                    context = context,
+                                    mealType = mealKey.lowercase(),
+                                    items = selectedItems
+                                )
+                                snackbar.showSnackbar("Guardado correctamente")
+                                onBack()
+                            } catch (e: Exception) {
+                                snackbar.showSnackbar("Error: ${e.message}")
+                            } finally {
+                                isSaving = false
+                            }
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp)
+                ) {
+                    Text("Confirmar $mealKey")
+                }
+            }
+        }
     ) { padding ->
 
         Column(
@@ -104,9 +160,35 @@ fun AddMealScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // ======================
-            // Barra de búsqueda + scan
-            // ======================
+
+            // ======================================================
+            // 🔥 LISTA DE ITEMS YA ELEGIDOS (TEMPORAL)
+            // ======================================================
+            if (selectedItems.isNotEmpty()) {
+                Text(
+                    "Seleccionados",
+                    color = White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+
+                selectedItems.forEachIndexed { index, food ->
+                    SelectedItemCard(
+                        item = food,
+                        onRemove = {
+                            selectedItems = selectedItems.toMutableList().apply {
+                                removeAt(index)
+                            }
+                        }
+                    )
+                }
+
+                Spacer(Modifier.height(14.dp))
+            }
+
+            // ======================================================
+            // Búsqueda + botón escanear
+            // ======================================================
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -115,31 +197,30 @@ fun AddMealScreen(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                    leadingIcon = { Icon(Icons.Filled.Search, null) },
                     placeholder = { Text("Buscar alimento...", color = White.copy(0.7f)) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = White.copy(0.10f),
                         unfocusedContainerColor = White.copy(0.08f),
-                        disabledContainerColor = White.copy(0.08f),
                         focusedTextColor = White,
                         unfocusedTextColor = White,
                         focusedBorderColor = Orange,
                         unfocusedBorderColor = White.copy(0.25f),
-                        cursorColor = Orange
+                        cursorColor = Orange,
                     ),
                     modifier = Modifier.weight(1f)
                 )
 
                 FilledTonalButton(
                     onClick = onScan,
-                    enabled = !isSaving,
                     colors = ButtonDefaults.filledTonalButtonColors(
                         containerColor = White.copy(0.12f),
                         contentColor = Orange
-                    ),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
-                ) { Text("Escanear") }
+                    )
+                ) {
+                    Text("Escanear")
+                }
             }
 
             Text(
@@ -149,42 +230,11 @@ fun AddMealScreen(
                 fontWeight = FontWeight.SemiBold
             )
 
-            // ======================
-            // 🔥 ITEM DESTACADO DEL ESCANEO
-            // ======================
-            if (highlightItem != null) {
-                CatalogItemCard(
-                    item = FoodRepository.CatalogUiItem(
-                        name = highlightItem.name,
-                        portionLabel = scannedPortion ?: highlightItem.portionLabel,
-                        kcal = scannedKcal ?: highlightItem.kcal,
-                        preview = highlightItem.preview
-                    ),
-                    enabled = !isSaving,
-                    onAdd = {
-                        scope.launch {
-                            try {
-                                isSaving = true
-                                FoodRepository.addMealItemAuto(
-                                    context = context,
-                                    mealType = mealKey.lowercase(),
-                                    displayName = highlightItem.name
-                                )
-                                snackbar.showSnackbar("${highlightItem.name} agregado a $mealKey")
-                                onBack()
-                            } catch (e: Exception) {
-                                snackbar.showSnackbar("Error: ${e.message ?: "no se pudo guardar"}")
-                            } finally {
-                                isSaving = false
-                            }
-                        }
-                    }
-                )
-                Spacer(modifier = Modifier.height(16.dp))
-            }
-
+            // ======================================================
+            // Lista del catálogo
+            // ======================================================
             if (loading) {
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxSize(), Alignment.Center) {
                     CircularProgressIndicator(color = Orange)
                 }
             } else {
@@ -197,22 +247,7 @@ fun AddMealScreen(
                             item = food,
                             enabled = !isSaving,
                             onAdd = {
-                                scope.launch {
-                                    try {
-                                        isSaving = true
-                                        FoodRepository.addMealItemAuto(
-                                            context = context,
-                                            mealType = mealKey.lowercase(),
-                                            displayName = food.name
-                                        )
-                                        snackbar.showSnackbar("${food.name} agregado a $mealKey")
-                                        onBack()
-                                    } catch (e: Exception) {
-                                        snackbar.showSnackbar("Error: ${e.message ?: "no se pudo guardar"}")
-                                    } finally {
-                                        isSaving = false
-                                    }
-                                }
+                                selectedItems = selectedItems + food
                             }
                         )
                     }
@@ -222,10 +257,37 @@ fun AddMealScreen(
     }
 }
 
-// ========================================================================
-// TARJETAS E ITEM UI
-// ========================================================================
+// ============================================================
+// TARJETA PARA LISTA SELECCIONADA (CON ELIMINAR)
+// ============================================================
+@Composable
+private fun SelectedItemCard(
+    item: FoodRepository.CatalogUiItem,
+    onRemove: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = White.copy(0.20f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column {
+                Text(item.name, color = White, fontWeight = FontWeight.SemiBold)
+                Text("${item.kcal} kcal • ${item.portionLabel}", color = White.copy(0.8f))
+            }
+            TextButton(onClick = onRemove) {
+                Text("Eliminar", color = Orange)
+            }
+        }
+    }
+}
 
+// ============================================================
+// TARJETA DE CATALOGO (EXPANDIBLE)
+// ============================================================
 @Composable
 private fun CatalogItemCard(
     item: FoodRepository.CatalogUiItem,
@@ -233,13 +295,15 @@ private fun CatalogItemCard(
     onAdd: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val rot by animateFloatAsState(if (expanded) 180f else 0f, label = "chevron")
+    val rot by animateFloatAsState(if (expanded) 180f else 0f)
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.15f)),
+        colors = CardDefaults.cardColors(containerColor = White.copy(0.15f)),
         modifier = Modifier.animateContentSize()
     ) {
         Column(Modifier.fillMaxWidth()) {
+
+            // HEADER
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -250,39 +314,30 @@ private fun CatalogItemCard(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(item.name, color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        "${item.kcal} kcal • ${item.portionLabel}",
-                        color = White.copy(0.85f)
-                    )
+                    Text("${item.kcal} kcal • ${item.portionLabel}", color = White.copy(0.8f))
                 }
-                Icon(
-                    imageVector = Icons.Filled.ExpandMore,
-                    contentDescription = "Ver detalles",
-                    tint = White,
-                    modifier = Modifier.rotate(rot)
-                )
+                Icon(Icons.Filled.ExpandMore, null, tint = White, modifier = Modifier.rotate(rot))
             }
 
             if (expanded) {
                 Divider(color = White.copy(0.1f))
                 MetricsGrid(item.preview)
+
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                        .padding(14.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
                     FilledTonalButton(
-                        onClick = onAdd,
                         enabled = enabled,
+                        onClick = onAdd,
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = Orange,
                             contentColor = White
-                        ),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                        )
                     ) {
-                        Icon(Icons.Filled.Add, contentDescription = "Agregar")
+                        Icon(Icons.Filled.Add, null)
                         Spacer(Modifier.width(6.dp))
                         Text("Agregar")
                     }
@@ -294,28 +349,24 @@ private fun CatalogItemCard(
 
 @Composable
 private fun MetricsGrid(p: FoodRepository.PortionPreview) {
-    Column(Modifier.padding(all = 14.dp)) {
-        Text(
-            text = "Métricas de la porción",
-            color = White,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.SemiBold
-        )
+    Column(Modifier.padding(14.dp)) {
+        Text("Métricas de la porción", color = White, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
+
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MetricChip(label = "IG", value = p.ig.toString())
-            MetricChip(label = "Gramos", value = "${p.grams} g")
-            MetricChip(label = "GL", value = String.format(Locale.US, "%.1f", p.gl))
+            MetricChip("IG", p.ig.toString())
+            MetricChip("Gramos", "${p.grams} g")
+            MetricChip("GL", "%.1f".format(Locale.US, p.gl))
         }
-        Spacer(Modifier.height(6.dp))
+
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MetricChip(label = "Carbohidratos", value = String.format(Locale.US, "%.1f g", p.carbsG))
-            MetricChip(label = "Proteína", value = String.format(Locale.US, "%.1f g", p.proteinG))
-            MetricChip(label = "Fibra", value = String.format(Locale.US, "%.1f g", p.fiberG))
+            MetricChip("Carbs", "%.1f g".format(Locale.US, p.carbsG))
+            MetricChip("Proteína", "%.1f g".format(Locale.US, p.proteinG))
+            MetricChip("Fibra", "%.1f g".format(Locale.US, p.fiberG))
         }
-        Spacer(Modifier.height(6.dp))
+
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MetricChip(label = "Energía", value = "${p.kcal} kcal")
+            MetricChip("Kcal", "${p.kcal} kcal")
         }
     }
 }
@@ -324,10 +375,10 @@ private fun MetricsGrid(p: FoodRepository.PortionPreview) {
 private fun MetricChip(label: String, value: String) {
     Surface(color = White.copy(0.10f), shape = MaterialTheme.shapes.small) {
         Column(
-            Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            Modifier.padding(10.dp),
             horizontalAlignment = Alignment.Start
         ) {
-            Text(label, color = White.copy(0.75f), fontSize = 11.sp)
+            Text(label, color = White.copy(0.7f), fontSize = 11.sp)
             Text(value, color = White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     }

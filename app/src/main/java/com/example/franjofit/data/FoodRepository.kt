@@ -28,7 +28,6 @@ data class Food(
     val kcal100g: Int
 )
 
-// Porción calculada a partir de Food + gramos
 private data class PortionCalc(
     val grams: Int,
     val carbsG: Double,
@@ -43,47 +42,76 @@ private data class PortionCalc(
 // -------------------------
 object FoodRepository {
 
-    // ---------- Firebase ----------
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
-    // ---------- Catálogo ----------
-    private const val ASSET_FILE = "alimentos.csv"   // nombre que usas en assets
+    private const val ASSET_FILE = "alimentos.csv"
     private var catalogLoaded = false
     private var foods: List<Food> = emptyList()
 
-    // =========================
-    // API PÚBLICA
-    // =========================
+    // ============================================================
+    //  NUEVO: Guardar un desayuno/almuerzo/cena COMPLETO
+    // ============================================================
+    suspend fun saveMealItems(
+        context: Context,
+        mealType: String,
+        items: List<CatalogUiItem>
+    ) {
+        val uid = auth.currentUser?.uid ?: return
+        val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-    /**
-     * Agrega un ítem a (desayuno/almuerzo/cena/extras) usando porciones predefinidas
-     * según el nombre visible (displayName). Si no hay preset → usa 100 g.
-     *
-     * Guarda TODOS los campos que necesitas para SMP:
-     *  - id, name, grams, ig, carbs_g, protein_g, fiber_g, kcal, gl, portion_text
-     */
+        val mealDoc = db.collection("users")
+            .document(uid)
+            .collection("meals")
+            .document(today)
+
+        val snapshot = mealDoc.get().await()
+        val existing = snapshot.get(mealType) as? List<Map<String, Any>> ?: emptyList()
+
+        // Convertimos cada CatalogUiItem a entrada completa para Firestore
+        val formatted = items.map { f ->
+            mapOf(
+                "id" to f.name,
+                "name" to f.name,
+                "grams" to f.preview.grams,
+                "ig" to f.preview.ig,
+                "carbs_g" to f.preview.carbsG,
+                "protein_g" to f.preview.proteinG,
+                "fiber_g" to f.preview.fiberG,
+                "kcal" to f.preview.kcal,
+                "gl" to f.preview.gl,
+                "portion_text" to f.portionLabel
+            )
+        }
+
+        // Guardamos junto con lo que ya estaba (append)
+        mealDoc.set(
+            mapOf(mealType to (existing + formatted)),
+            SetOptions.merge()
+        ).await()
+    }
+
+    // ============================================================
+    //  Funciones anteriores (las dejamos igual)
+    // ============================================================
+
     suspend fun addMealItemAuto(
         context: Context,
-        mealType: String,           // "desayuno" | "almuerzo" | "cena" | "extras"
-        displayName: String,        // ej: "Avena cocida"
+        mealType: String,
+        displayName: String,
         portionTextOverride: String? = null
     ) {
         val uid = auth.currentUser?.uid ?: return
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-        // 1) Buscar alimento en el catálogo (match flexible)
         val food = findByNameFuzzy(context, displayName) ?: return
 
-        // 2) Resolver porción preset (o 100 g)
         val preset = presetFor(displayName)
         val grams = preset?.grams ?: 100
         val portionText = portionTextOverride ?: preset?.text ?: "$grams g"
 
-        // 3) Calcular macros y GL para esa porción
         val calc = calcPortion(food, grams)
 
-        // 4) Armar payload con todo (SMP-ready)
         val mealData = mapOf(
             "id" to food.id,
             "name" to food.nombre,
@@ -97,7 +125,6 @@ object FoodRepository {
             "portion_text" to portionText
         )
 
-        // 5) Append al array del día (no rompemos tu estructura actual)
         val mealDoc = db.collection("users")
             .document(uid)
             .collection("meals")
@@ -105,12 +132,13 @@ object FoodRepository {
 
         val snapshot = mealDoc.get().await()
         val existingMeals = snapshot.get(mealType) as? List<Map<String, Any>> ?: emptyList()
-        val updatedMeals = existingMeals + mealData
 
-        mealDoc.set(mapOf(mealType to updatedMeals), SetOptions.merge()).await()
+        mealDoc.set(
+            mapOf(mealType to (existingMeals + mealData)),
+            SetOptions.merge()
+        ).await()
     }
 
-    /** Igual que antes: devuelve el documento del día con los arrays por tipo de comida. */
     suspend fun getMealsForToday(): Map<String, List<Map<String, Any>>> {
         val uid = auth.currentUser?.uid ?: return emptyMap()
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -127,10 +155,9 @@ object FoodRepository {
         } ?: emptyMap()
     }
 
-    // =========================
-    // PREVIEW OPCIONAL (para UI expandible)
-    // =========================
-
+    // ============================================================
+    //  Catálogo
+    // ============================================================
     data class PortionPreview(
         val ig: Int,
         val grams: Int,
@@ -141,7 +168,13 @@ object FoodRepository {
         val gl: Double
     )
 
-    /** Devuelve la porción preset + métricas sin guardar aún (o null si no se encuentra). */
+    data class CatalogUiItem(
+        val name: String,
+        val portionLabel: String,
+        val kcal: Int,
+        val preview: PortionPreview
+    )
+
     suspend fun getPortionPreview(
         context: Context,
         displayName: String
@@ -160,147 +193,15 @@ object FoodRepository {
             gl = calc.gl
         )
     }
-
-    // =========================
-    // Catálogo: lectura + búsqueda
-    // =========================
-    private suspend fun loadCatalog(context: Context) = withContext(Dispatchers.IO) {
-        if (catalogLoaded) return@withContext
-        val input = context.assets.open(ASSET_FILE)
-        val br = input.bufferedReader()
-        foods = parseCsv(br)
-        catalogLoaded = true
-    }
-
-    private suspend fun findByNameFuzzy(context: Context, query: String): Food? {
-        loadCatalog(context)
-        val q = norm(query)
-        // 1) exacto
-        foods.firstOrNull { norm(it.nombre) == q }?.let { return it }
-        // 2) contiene
-        val contains = foods.filter { norm(it.nombre).contains(q) }
-        if (contains.size == 1) return contains.first()
-        if (contains.isNotEmpty()) return bestTokenMatch(q, contains)
-        // 3) tokens
-        val tokenCandidates = foods.filter { tokenOverlap(q, norm(it.nombre)) > 0 }
-        if (tokenCandidates.isEmpty()) return null
-        return bestTokenMatch(q, tokenCandidates)
-    }
-
-    private fun parseCsv(br: BufferedReader): List<Food> {
-        val out = mutableListOf<Food>()
-        br.readLine() // header
-        br.lineSequence().forEach { raw ->
-            if (raw.isBlank()) return@forEach
-            // CSV simple (sin comillas). Tus nombres no tienen comas.
-            val cols = raw.split(',').map { it.trim() }
-            if (cols.size < 7) return@forEach
-            try {
-                out += Food(
-                    id = cols[0],
-                    nombre = cols[1],
-                    ig = cols[2].toInt(),
-                    carbs100g = cols[3].toDouble(),
-                    protein100g = cols[4].toDouble(),
-                    fiber100g = cols[5].toDouble(),
-                    kcal100g = cols[6].toInt()
-                )
-            } catch (_: Exception) { /* ignora fila mala */ }
-        }
-        return out
-    }
-
-    // =========================
-    // Helpers de normalización y matching
-    // =========================
-    private fun norm(s: String): String =
-        Normalizer.normalize(s.lowercase(Locale.ROOT), Normalizer.Form.NFD)
-            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
-            .replace(Regex("[^a-z0-9\\s]"), " ")
-            .replace(Regex("\\s+"), " ")
-            .trim()
-
-    private fun tokenOverlap(a: String, b: String): Int {
-        val ta = a.split(' ').filter { it.isNotBlank() }.toSet()
-        val tb = b.split(' ').filter { it.isNotBlank() }.toSet()
-        return ta.intersect(tb).size
-    }
-
-    private fun bestTokenMatch(q: String, candidates: List<Food>): Food =
-        candidates.maxBy { cand ->
-            val c = norm(cand.nombre)
-            val overlap = tokenOverlap(q, c)
-            overlap * 10 - abs(c.length - q.length)
-        }
-
-    // =========================
-    // Porciones preset (opción A: porciones predefinidas)
-    // =========================
-    private data class PortionPreset(val grams: Int, val text: String)
-
-    private fun presetFor(displayName: String): PortionPreset? {
-        val key = norm(displayName)
-        return when (key) {
-            // TUS 5 BÁSICOS (los de la pantalla)
-            norm("Avena cocida") -> PortionPreset(grams = 200, text = "1 taza (240 ml)")
-            norm("Pan integral") -> PortionPreset(grams = 28,  text = "1 rebanada (28 g)")
-            norm("Huevo cocido") -> PortionPreset(grams = 50,  text = "1 unidad (50 g)")
-            norm("Yogur natural sin azúcar") -> PortionPreset(grams = 150, text = "1 pote (150 g)")
-            norm("Manzana") -> PortionPreset(grams = 182, text = "1 unidad (182 g)")
-
-            // Extras comunes (útiles)
-            norm("Pan francés (blanco)") -> PortionPreset(50, "1 unidad (50 g)")
-            norm("Arroz blanco cocido") -> PortionPreset(150, "1/2 taza (150 g)")
-            norm("Arroz integral cocido") -> PortionPreset(150, "1/2 taza (150 g)")
-            norm("Papa blanca cocida") -> PortionPreset(150, "1 porción (150 g)")
-            norm("Camote cocido") -> PortionPreset(150, "1 porción (150 g)")
-            norm("Choclo cocido") -> PortionPreset(100, "1/2 choclo (100 g)")
-            norm("Quinua cocida") -> PortionPreset(150, "1/2 taza (150 g)")
-            norm("Leche descremada") -> PortionPreset(240, "1 vaso (240 ml)")
-            norm("Gaseosa azucarada") -> PortionPreset(355, "1 lata (355 ml)")
-            else -> null
-        }
-    }
-
-    // =========================
-    // Cálculo de macros por porción + GL
-    // =========================
-    private fun calcPortion(food: Food, grams: Int): PortionCalc {
-        val carbs  = food.carbs100g   * grams / 100.0
-        val fiber  = food.fiber100g   * grams / 100.0
-        val prot   = food.protein100g * grams / 100.0
-        val kcal   = (food.kcal100g   * grams / 100.0).toInt()
-
-        // Carbohidratos netos
-        val netCarbs = carbs - fiber
-        val gl = (food.ig / 100.0) * netCarbs
-
-        return PortionCalc(
-            grams = grams,
-            carbsG = round1(carbs),
-            proteinG = round1(prot),
-            fiberG = round1(fiber),
-            kcal = kcal,
-            gl = round1(gl)
-        )
-    }
-
-    // ===== UI helper para listar TODO el catálogo con métricas listas =====
-    data class CatalogUiItem(
-        val name: String,
-        val portionLabel: String,
-        val kcal: Int,
-        val preview: PortionPreview     // incluye ig, grams, gl, carbs/prot/fibra
-    )
-
-    /** Devuelve todos los alimentos del CSV con su porción sugerida y métricas precalculadas. */
     suspend fun listCatalogForUi(context: Context): List<CatalogUiItem> {
         loadCatalog(context)
+
         return foods.map { f ->
             val preset = presetFor(f.nombre)
             val grams = preset?.grams ?: 100
             val label = preset?.text ?: "$grams g"
             val calc = calcPortion(f, grams)
+
             CatalogUiItem(
                 name = f.nombre,
                 portionLabel = label,
@@ -319,5 +220,113 @@ object FoodRepository {
     }
 
 
-    private fun round1(v: Double) = round(v * 10.0) / 10.0
+    private suspend fun loadCatalog(context: Context) = withContext(Dispatchers.IO) {
+        if (!catalogLoaded) {
+            val input = context.assets.open(ASSET_FILE)
+            val br = input.bufferedReader()
+            foods = parseCsv(br)
+            catalogLoaded = true
+        }
+    }
+
+    private suspend fun findByNameFuzzy(context: Context, query: String): Food? {
+        loadCatalog(context)
+        val q = norm(query)
+
+        foods.firstOrNull { norm(it.nombre) == q }?.let { return it }
+
+        val contains = foods.filter { norm(it.nombre).contains(q) }
+        if (contains.size == 1) return contains.first()
+        if (contains.isNotEmpty()) return bestTokenMatch(q, contains)
+
+        val tokenCandidates = foods.filter { tokenOverlap(q, norm(it.nombre)) > 0 }
+        if (tokenCandidates.isEmpty()) return null
+
+        return bestTokenMatch(q, tokenCandidates)
+    }
+
+    private fun parseCsv(br: BufferedReader): List<Food> {
+        val out = mutableListOf<Food>()
+        br.readLine()
+        br.lineSequence().forEach { raw ->
+            if (raw.isBlank()) return@forEach
+            val cols = raw.split(',').map { it.trim() }
+            if (cols.size < 7) return@forEach
+            try {
+                out += Food(
+                    id = cols[0],
+                    nombre = cols[1],
+                    ig = cols[2].toInt(),
+                    carbs100g = cols[3].toDouble(),
+                    protein100g = cols[4].toDouble(),
+                    fiber100g = cols[5].toDouble(),
+                    kcal100g = cols[6].toInt()
+                )
+            } catch (_: Exception) {}
+        }
+        return out
+    }
+
+    private fun norm(s: String): String =
+        Normalizer.normalize(s.lowercase(Locale.ROOT), Normalizer.Form.NFD)
+            .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
+            .replace(Regex("[^a-z0-9\\s]"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+
+    private fun tokenOverlap(a: String, b: String): Int {
+        val ta = a.split(' ').filter { it.isNotBlank() }.toSet()
+        val tb = b.split(' ').filter { it.isNotBlank() }.toSet()
+        return ta.intersect(tb).size
+    }
+
+    private fun bestTokenMatch(q: String, list: List<Food>): Food =
+        list.maxBy {
+            val c = norm(it.nombre)
+            tokenOverlap(q, c) * 10 - abs(c.length - q.length)
+        }
+
+    private data class PortionPreset(val grams: Int, val text: String)
+
+    private fun presetFor(displayName: String): PortionPreset? {
+        val key = norm(displayName)
+        return when (key) {
+            norm("Avena cocida") -> PortionPreset(200, "1 taza (240 ml)")
+            norm("Pan integral") -> PortionPreset(28, "1 rebanada (28 g)")
+            norm("Huevo cocido") -> PortionPreset(50, "1 unidad (50 g)")
+            norm("Yogur natural sin azúcar") -> PortionPreset(150, "1 pote (150 g)")
+            norm("Manzana") -> PortionPreset(182, "1 unidad (182 g)")
+            norm("Pan francés (blanco)") -> PortionPreset(50, "1 unidad (50 g)")
+            norm("Arroz blanco cocido") -> PortionPreset(150, "1/2 taza (150 g)")
+            norm("Arroz integral cocido") -> PortionPreset(150, "1/2 taza (150 g)")
+            norm("Papa blanca cocida") -> PortionPreset(150, "1 porción (150 g)")
+            norm("Camote cocido") -> PortionPreset(150, "1 porción (150 g)")
+            norm("Choclo cocido") -> PortionPreset(100, "1/2 choclo (100 g)")
+            norm("Quinua cocida") -> PortionPreset(150, "1/2 taza (150 g)")
+            norm("Leche descremada") -> PortionPreset(240, "1 vaso (240 ml)")
+            norm("Gaseosa azucarada") -> PortionPreset(355, "1 lata (355 ml)")
+            else -> null
+        }
+    }
+
+    private fun calcPortion(food: Food, grams: Int): PortionCalc {
+        val carbs = food.carbs100g * grams / 100.0
+        val fiber = food.fiber100g * grams / 100.0
+        val prot = food.protein100g * grams / 100.0
+        val kcal = (food.kcal100g * grams / 100.0).toInt()
+
+        val netCarbs = carbs - fiber
+        val gl = (food.ig / 100.0) * netCarbs
+
+        return PortionCalc(
+            grams = grams,
+            carbsG = round1(carbs),
+            proteinG = round1(prot),
+            fiberG = round1(fiber),
+            kcal = kcal,
+            gl = round1(gl)
+        )
+    }
+
+    private fun round1(v: Double) = round(v * 10) / 10
 }

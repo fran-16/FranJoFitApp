@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -18,14 +19,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.franjofit.data.UserRepository
 import com.example.franjofit.data.WeightEntry
-import com.example.franjofit.ui.theme.DeepBlue
-import com.example.franjofit.ui.theme.White
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
+val CardBorderSoft = Color(0xFFD3E4FF)
+val TextDark = Color(0xFF0D1B2A)
+
 @Composable
 fun ProgressScreen() {
+
     var weights by remember { mutableStateOf<List<WeightEntry>>(emptyList()) }
     val scope = rememberCoroutineScope()
 
@@ -38,12 +41,12 @@ fun ProgressScreen() {
     Column(
         Modifier
             .fillMaxSize()
-            .background(DeepBlue)
+            .background(CardBorderSoft)
             .padding(16.dp)
     ) {
         Text(
             "Progreso",
-            color = White,
+            color = TextDark,
             fontSize = 24.sp,
             fontWeight = FontWeight.Bold
         )
@@ -52,13 +55,20 @@ fun ProgressScreen() {
 
         if (weights.isEmpty()) {
             Box(
-                modifier = Modifier.fillMaxSize(),
+                Modifier.fillMaxWidth().padding(top = 60.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Sin datos todavía", color = White.copy(0.7f))
+                Text("Sin datos todavía", color = TextDark.copy(0.7f))
             }
         } else {
             WeightChartCard(weights)
+            Spacer(Modifier.height(20.dp))
+
+            MacroChartCard(
+                carbs = 180f,
+                protein = 70f,
+                fiber = 25f
+            )
         }
     }
 }
@@ -77,51 +87,46 @@ fun WeightChartCard(weights: List<WeightEntry>) {
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = White.copy(alpha = 0.12f)),
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.6f)),
         shape = MaterialTheme.shapes.large
     ) {
         Column(Modifier.padding(16.dp)) {
-            Text(
-                "Peso (últimos 90 días)",
-                color = White,
-                fontWeight = FontWeight.SemiBold
-            )
+
+            Text("Peso (últimos 90 días)", color = TextDark, fontWeight = FontWeight.SemiBold)
 
             Spacer(Modifier.height(6.dp))
 
-            // Resumen de números en texto (en vez de eje Y)
             Text(
-                text = "Actual: ${"%.1f".format(lastW)} kg   •   Mín: ${"%.1f".format(minW)}   •   Máx: ${"%.1f".format(maxW)}",
-                color = White.copy(0.85f),
+                "Actual: ${"%.1f".format(lastW)} kg   •   Mín: ${"%.1f".format(minW)}   •   Máx: ${"%.1f".format(maxW)}",
+                color = TextDark.copy(0.75f),
                 fontSize = 13.sp
             )
 
             if (diff != 0f) {
                 val arrow = if (diff < 0) "⬇" else "⬆"
                 val color = if (diff < 0) Color(0xFF4CAF50) else Color(0xFFF44336)
+
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "$arrow Cambio total: ${"%.1f".format(kotlin.math.abs(diff))} kg",
+                    "$arrow Cambio total: ${"%.1f".format(kotlin.math.abs(diff))} kg",
                     color = color,
                     fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
+                    fontWeight = FontWeight.Medium
                 )
             }
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(10.dp))
 
-            // Gráfica
             WeightLineChart(weights)
 
             Spacer(Modifier.height(12.dp))
 
-            // “Eje X” como textos abajo del gráfico
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(firstDate, color = White.copy(0.8f), fontSize = 12.sp)
-                Text(lastDate, color = White.copy(0.8f), fontSize = 12.sp)
+                Text(firstDate, color = TextDark.copy(0.8f), fontSize = 12.sp)
+                Text(lastDate, color = TextDark.copy(0.8f), fontSize = 12.sp)
             }
         }
     }
@@ -130,7 +135,7 @@ fun WeightChartCard(weights: List<WeightEntry>) {
 @Composable
 fun WeightLineChart(weights: List<WeightEntry>) {
 
-    val animatedAlpha by animateFloatAsState(
+    val alpha by animateFloatAsState(
         targetValue = 1f,
         animationSpec = tween(1200),
         label = "chartAlpha"
@@ -138,85 +143,126 @@ fun WeightLineChart(weights: List<WeightEntry>) {
 
     val minW = weights.minOf { it.weight }
     val maxW = weights.maxOf { it.weight }
-    val range = (maxW - minW).takeIf { it != 0f } ?: 1f // evita división por cero
+    val range = (maxW - minW).takeIf { it != 0f } ?: 1f
 
     val points = weights.map { it.date to it.weight }
 
     Box(
-        modifier = Modifier
-            .height(220.dp)
-            .fillMaxWidth()
+        Modifier.height(220.dp).fillMaxWidth()
     ) {
-        Canvas(modifier = Modifier.fillMaxSize()) {
 
-            val padding = 32f
-            val width = size.width - padding * 2
-            val height = size.height - padding * 2
+        Canvas(Modifier.fillMaxSize()) {
 
-            fun x(i: Int): Float =
-                padding + if (points.size == 1) width / 2f else (i.toFloat() / (points.size - 1)) * width
+            val pad = 32f
+            val w = size.width - pad * 2
+            val h = size.height - pad * 2
 
-            fun y(value: Float): Float =
-                padding + (1f - (value - minW) / range) * height
+            fun x(i: Int) =
+                pad + if (points.size == 1) w / 2f else (i.toFloat() / (points.size - 1)) * w
 
-            // -----------------------------
-            // Curva suavizada (Bézier)
-            // -----------------------------
+            fun y(v: Float) = pad + (1f - (v - minW) / range) * h
+
             val path = Path()
-            val firstY = y(points.first().second)
-            path.moveTo(x(0), firstY)
+            val startY = y(points.first().second)
+            path.moveTo(x(0), startY)
 
-            if (points.size == 1) {
-                path.lineTo(x(0) + 0.1f, firstY)
-            } else {
+            if (points.size > 1) {
                 for (i in 1 until points.size) {
                     val x1 = x(i - 1)
                     val y1 = y(points[i - 1].second)
-
                     val x2 = x(i)
                     val y2 = y(points[i].second)
-
-                    val midX = (x1 + x2) / 2f
-
-                    path.cubicTo(
-                        midX, y1,
-                        midX, y2,
-                        x2, y2
-                    )
+                    val m = (x1 + x2) / 2f
+                    path.cubicTo(m, y1, m, y2, x2, y2)
                 }
+            } else {
+                path.lineTo(x(0) + 0.1f, startY)
             }
 
-            // Sombra bajo la curva
-            val shadowPath = Path().apply {
+            val shadow = Path().apply {
                 addPath(path)
-                lineTo(x(points.lastIndex), height + padding)
-                lineTo(padding, height + padding)
+                lineTo(x(points.lastIndex), h + pad)
+                lineTo(pad, h + pad)
                 close()
             }
 
             drawPath(
-                path = shadowPath,
-                color = Color(0xFFFF9300).copy(alpha = 0.18f * animatedAlpha)
+                path = shadow,
+                color = Color(0xFFFF9300).copy(alpha = 0.20f * alpha)
             )
 
-            // Línea principal
             drawPath(
                 path = path,
-                color = Color(0xFFFF9300).copy(alpha = animatedAlpha),
-                style = Stroke(width = 6f, cap = StrokeCap.Round)
+                color = Color(0xFFFF9300).copy(alpha = alpha),
+                style = Stroke(6f, cap = StrokeCap.Round)
             )
-
-            // Puntos
-            points.forEachIndexed { i, (_, w) ->
-                drawCircle(
-                    color = Color.White.copy(alpha = animatedAlpha),
-                    radius = 6f,
-                    center = androidx.compose.ui.geometry.Offset(
-                        x(i),
-                        y(w)
-                    )
-                )
-            }
         }
+    }
+}
+
+@Composable
+fun MacroChartCard(carbs: Float, protein: Float, fiber: Float) {
+
+    val total = (carbs + protein + fiber).takeIf { it > 0 } ?: 1f
+    val carbRatio = carbs / total
+    val protRatio = protein / total
+    val fibRatio = fiber / total
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.6f)),
+        shape = MaterialTheme.shapes.large
+    ) {
+        Column(Modifier.padding(16.dp)) {
+
+            Text("Macronutrientes del día", color = TextDark, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(26.dp)
+                    .background(Color(0xFFE9F0FF), MaterialTheme.shapes.small)
+            ) {
+                Row(Modifier.fillMaxSize()) {
+                    Box(
+                        Modifier.weight(carbRatio).fillMaxHeight()
+                            .background(Color(0xFF4FC3F7))
+                    )
+                    Box(
+                        Modifier.weight(protRatio).fillMaxHeight()
+                            .background(Color(0xFF81C784))
+                    )
+                    Box(
+                        Modifier.weight(fibRatio).fillMaxHeight()
+                            .background(Color(0xFFFFF176))
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            MacroLegend("Carbohidratos", carbs, Color(0xFF4FC3F7))
+            MacroLegend("Proteína", protein, Color(0xFF81C784))
+            MacroLegend("Fibra", fiber, Color(0xFFFFF176))
+        }
+    }
+}
+
+@Composable
+fun MacroLegend(label: String, grams: Float, color: Color) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                Modifier.size(10.dp).background(color, MaterialTheme.shapes.small)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(label, color = TextDark.copy(0.9f), fontSize = 13.sp)
+        }
+        Text("${grams.toInt()} g", color = TextDark, fontSize = 13.sp)
     }
 }

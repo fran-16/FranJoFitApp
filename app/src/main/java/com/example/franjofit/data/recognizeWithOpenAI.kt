@@ -44,7 +44,7 @@ object recognizeWithOpenAI {
 
         require(apiKey.isNotBlank()) { "OPENAI_API_KEY vacío" }
 
-        // === reduce resolución para evitar errores y ahorrar tokens ===
+
         val maxDim = 512
         val w = bitmap.width
         val h = bitmap.height
@@ -60,8 +60,7 @@ object recognizeWithOpenAI {
             byteStream.toByteArray(),
             android.util.Base64.NO_WRAP
         )
-
-        // === prompt nuevo profesional ===
+// este es el prompt
         val promptText = """
 Eres un asistente nutricional experto.
 
@@ -88,7 +87,7 @@ Reglas:
 
         val promptEsc = org.json.JSONObject.quote(promptText)
 
-        // === request JSON ===
+        //este es el request
         val json = """
         {
           "model": "gpt-4o-mini",
@@ -120,7 +119,7 @@ Reglas:
                 Log.d(TAG, "HTTP ${resp.code} ${resp.message}")
                 Log.d(TAG, "Body: $bodyStr")
 
-                // limite de uso
+
                 if (resp.code == 429 || bodyStr.contains("Rate limit", ignoreCase = true)) {
                     return@use """{"error":"Has alcanzado el límite de la API."}"""
                 }

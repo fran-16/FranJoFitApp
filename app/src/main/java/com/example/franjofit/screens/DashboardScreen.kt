@@ -66,9 +66,6 @@ import com.example.franjofit.ui.theme.ScreenBackground
 import com.example.franjofit.ui.theme.StoryCardBlue
 import com.example.franjofit.ui.theme.TextColorDarkBlue
 
-// =========================
-// NUEVO: SMP (Score) + Semáforo
-// =========================
 enum class SmpColor { GREEN, AMBER, RED }
 
 fun smpColorFrom(score: Int): SmpColor = when {
@@ -222,9 +219,7 @@ fun SmpSummaryCard(
 }
 
 
-// =========================
-// Tu código (con avatar mini en AppBar)
-// =========================
+
 enum class MealType { DESAYUNO, ALMUERZO, CENA, EXTRAS }
 data class MealItem(val name: String, val kcal: Int)
 @Composable
@@ -246,7 +241,7 @@ fun SmpAssistantBot(modifier: Modifier = Modifier, onClick: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-        // ⭐ Círculo blanco con sombra
+
         Box(
             modifier = Modifier
                 .size(70.dp)
@@ -328,7 +323,6 @@ fun DashboardScreen(
 
 
 
-    // ===== Avatar mini: trae photoUrl (Firestore/Storage) o de Auth y úsalo en el AppBar
     var fotoMiniUrl by remember {
         mutableStateOf<String?>(FirebaseAuth.getInstance().currentUser?.photoUrl?.toString())
     }
@@ -357,7 +351,7 @@ fun DashboardScreen(
 
     val pendingCount = 0
 
-    // ======== Historias / Artículos ========
+
     var showStory by remember { mutableStateOf(false) }
     var startStoryIndex by remember { mutableStateOf(0) }
 
@@ -459,7 +453,7 @@ fun DashboardScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primary,    // 💙 celeste
+                    containerColor = MaterialTheme.colorScheme.primary,
                     titleContentColor = MaterialTheme.colorScheme.onPrimary,
                     navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
                     actionIconContentColor = MaterialTheme.colorScheme.onPrimary
@@ -468,7 +462,7 @@ fun DashboardScreen(
         },
         bottomBar = {
             NavigationBar(
-                containerColor = MaterialTheme.colorScheme.primary,        // 💙 celeste
+                containerColor = MaterialTheme.colorScheme.primary,
                 tonalElevation = 0.dp
             ) {
                 NavigationBarItem(
@@ -520,7 +514,6 @@ fun DashboardScreen(
                 .background(ScreenBackground)
                 .padding(padding)
         ) {
-            // ⭐⭐⭐ AÑADE ESTE BLOQUE AQUÍ (ANTES DEL WHEN)
 
             when (selectedIndex) {
                 0 -> {
@@ -551,12 +544,12 @@ fun DashboardScreen(
                             }
                             onUpdateBaseGoal(newGoal)
                         },
-                        stories = storyItems.take(5),                       // 👈 pasas los StoryItem completos ,      // 👈 títulos de las 5 primeras
-                        onStoryClick = { index ->                           // 👈 abre modal en historia index
+                        stories = storyItems.take(5),
+                        onStoryClick = { index ->
                             startStoryIndex = index
                             showStory = true
                         },
-                        onSeeMoreStories = {                                // 👈 abre desde la 6ta
+                        onSeeMoreStories = {
                             startStoryIndex = 5
                             showStory = true
                         }
@@ -587,7 +580,7 @@ fun DashboardScreen(
         }
     }
 
-    // ====================== DIÁLOGO AGREGAR PESO ======================
+
     if (showWeightDialog) {
         var text by remember { mutableStateOf("") }
         var saving by remember { mutableStateOf(false) }
@@ -630,12 +623,7 @@ fun DashboardScreen(
 }
 
 
-/** MOCK SMP: sustituir por cálculo real. */
 
-/**
- * 🔬 NUEVO BLOQUE SMP — CÁLCULO PREDICHO REAL
- * Sustituye el antiguo calculateDailySmpMock
- */
 private const val DEFAULT_IG = 55.0
 private const val MAX_FIBER_BONUS = 10.0
 private const val MAX_PROT_BONUS  = 10.0
@@ -723,7 +711,7 @@ private fun smpForMeal(metrics: MealMetrics): MealSmp {
     return MealSmp(score.toInt(), reasons)
 }
 
-/** SMP diario ponderado por kcal (predicho) */
+
 private fun calculateDailySmpPredicted(
     meals: Map<String, List<Map<String, Any>>>
 ): Int {
@@ -755,24 +743,22 @@ private fun PrincipalContent(
     lastWeight: Float?,
     onAddWeightClick: () -> Unit,
     onEditGoal: (Int) -> Unit,
-    stories: List<StoryItem>,           // 👈 AHORA
+    stories: List<StoryItem>,
     onStoryClick: (Int) -> Unit,
-    onSeeMoreStories: () -> Unit        // 👈 ya estaba, lo dejamos aquí
+    onSeeMoreStories: () -> Unit
 ) {
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())   // 🔥🔥🔥 SCROLL VERTICAL
+            .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
 
-        // 🔥 Tarjeta SMP
         SmpSummaryCard(score = smpScore, pendingCount = pendingCount)
 
         Spacer(Modifier.height(12.dp))
 
-        // 🔥 Meta calórica
         CalorieGoalCard(
             baseGoal = baseGoal,
             remaining = remaining,
@@ -841,8 +827,6 @@ private fun PrincipalContent(
 
         Spacer(Modifier.height(12.dp))
 
-        // 🔥 Peso
-        // 🔥 Peso con último registro mostrado
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -893,9 +877,6 @@ private fun PrincipalContent(
 
 
         Spacer(Modifier.height(18.dp))
-// ⭐⭐⭐ Tarjeta Historias en celeste (un poco más fuerte)
-// ⭐⭐⭐ Tarjeta de Historias con mismo celeste que las otras tarjetas
-        // ⭐⭐⭐ Tarjeta Historias con MISMO estilo que las demás
         Card(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1044,7 +1025,7 @@ private fun MealSectionCard(
     ) {
         Column(Modifier.padding(16.dp)) {
 
-            // Título + botón Agregar
+
             Row(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -1081,7 +1062,7 @@ private fun MealSectionCard(
             Spacer(Modifier.height(8.dp))
 
             if (items.isEmpty()) {
-                // Estado vacío visible en tema claro
+
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1170,7 +1151,7 @@ private fun CalorieGoalCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            // ⭐ ARO CALÓRICO CEL ESTE
+
             Box(
                 modifier = Modifier.size(130.dp),
                 contentAlignment = Alignment.Center
@@ -1294,7 +1275,7 @@ private fun CalorieLavaRing(
             (this.size.height - sizeArc.height) / 2
         )
 
-        // Aro gris azulado de fondo
+
         drawArc(
             color = color.copy(alpha = bgAlpha * 0.6f),
             startAngle = 0f,
@@ -1325,7 +1306,7 @@ private fun CalorieLavaRing(
             style = Stroke(width = stroke, cap = StrokeCap.Round)
         )
 
-        // Puntito animado → “lava”
+
         if (animatedProgress > 0.05f) {
             val r = sizeArc.width / 2
             val cx = topLeft.x + r

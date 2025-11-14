@@ -50,14 +50,14 @@ fun ScanFoodScreen(
     var isProcessing by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
-    // Cargar catálogo (para métricas completas)
+    //Carga catálogo
     var catalog by remember { mutableStateOf<List<FoodRepository.CatalogUiItem>>(emptyList()) }
     LaunchedEffect(Unit) {
         runCatching { FoodRepository.listCatalogForUi(context) }
             .onSuccess { catalog = it }
     }
 
-    // Cámara
+    //Cámara
     val takePreviewLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicturePreview()
     ) { bmp ->
@@ -196,7 +196,7 @@ private data class LabeledFood(
 )
 
 
-// ==== LÓGICA OPENAI ====
+
 
 private suspend fun analyzeWithOpenAI(
     bmp: Bitmap,
@@ -265,7 +265,7 @@ private suspend fun analyzeWithOpenAI(
 }
 
 
-// ==== CARD ====
+
 
 @Composable
 private fun ScanResultCard(
@@ -330,7 +330,7 @@ private fun ScanResultCard(
 }
 
 
-// ==== MÉTRICAS ====
+//métricas
 
 @Composable
 private fun ScanMetricsGrid(p: FoodRepository.PortionPreview) {

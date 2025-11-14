@@ -19,11 +19,9 @@ object SmpReminderManager {
     private const val CHANNEL_ID = "SMP_CHANNEL"
     private const val CHANNEL_NAME = "Recordatorios SMP"
     private const val ALARM_REQUEST_CODE = 5511
-    private const val REMINDER_INTERVAL_MINUTES = 1L
+    private const val REMINDER_INTERVAL_MINUTES = 2L
 
-    // =========================================
-    //  CREAR CANAL (Android 8+)
-    // =========================================
+
     private fun createChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -40,9 +38,7 @@ object SmpReminderManager {
         }
     }
 
-    // =========================================
-    //  ENVIAR NOTIFICACIÓN SMP
-    // =========================================
+
     fun sendNotification(context: Context) {
 
         createChannel(context)
@@ -59,13 +55,13 @@ object SmpReminderManager {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Usamos BigTextStyle en lugar de setContentTitle / setContentText directos
+
         val bigStyle = NotificationCompat.BigTextStyle()
             .setBigContentTitle("¿Cómo te sentiste después de tu última comida?")
             .bigText("Toca para responder una mini-encuesta SMP.")
 
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.mipmap.ic_launcher)   // ← Ícono que sí existe en tu proyecto
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setStyle(
                 NotificationCompat.BigTextStyle()
                     .setBigContentTitle("¿Cómo te sentiste después de tu última comida?")
@@ -77,16 +73,12 @@ object SmpReminderManager {
             .build()
 
 
-        // Si sigues usando SmpNotifier:
+
         SmpNotifier.show(context, notification)
-        // Si NO tienes SmpNotifier, en vez de la línea de arriba usa:
-        // val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        // manager.notify(9921, notification)
+
     }
 
-    // =========================================
-    //   PROGRAMAR RECORDATORIO CADA X MINUTOS
-    // =========================================
+
     fun scheduleRepeating(context: Context) {
 
         val alarmManager =
