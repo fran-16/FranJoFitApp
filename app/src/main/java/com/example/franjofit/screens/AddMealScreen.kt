@@ -3,6 +3,7 @@ package com.example.franjofit.screens
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -22,12 +23,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.franjofit.data.FoodRepository
-import com.example.franjofit.ui.theme.DeepBlue
-import com.example.franjofit.ui.theme.Orange
-import com.example.franjofit.ui.theme.White
+import com.example.franjofit.ui.theme.CardBorderSoft
 import kotlinx.coroutines.launch
 import java.util.Locale
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,7 +34,6 @@ fun AddMealScreen(
     onBack: () -> Unit = {},
     onScan: () -> Unit = {},
 
-    // 🔥 Desde ScanFood
     scannedName: String? = null,
     scannedKcal: Int? = null,
     scannedPortion: String? = null
@@ -54,9 +51,7 @@ fun AddMealScreen(
     val snackbar = remember { SnackbarHostState() }
     var isSaving by remember { mutableStateOf(false) }
 
-
     var selectedItems by remember { mutableStateOf<List<FoodRepository.CatalogUiItem>>(emptyList()) }
-
 
     LaunchedEffect(scannedName, scannedKcal, scannedPortion) {
         if (scannedName != null) {
@@ -93,28 +88,38 @@ fun AddMealScreen(
         loading = false
     }
 
-
-
     val filtered = remember(catalog, query) {
         if (query.isBlank()) catalog
         else catalog.filter { it.name.contains(query, ignoreCase = true) }
     }
 
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(title) },
+                title = {
+                    Text(
+                        title,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Filled.ArrowBack, contentDescription = null)
+                        Icon(
+                            Icons.Filled.ArrowBack,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary
+                        )
                     }
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    titleContentColor = MaterialTheme.colorScheme.onPrimary,
+                    navigationIconContentColor = MaterialTheme.colorScheme.onPrimary,
+                    actionIconContentColor = MaterialTheme.colorScheme.onPrimary
+                )
             )
         },
         snackbarHost = { SnackbarHost(hostState = snackbar) },
-
-        // 🔥 BOTÓN CONFIRMAR AL FINAL
         bottomBar = {
             if (selectedItems.isNotEmpty()) {
                 Button(
@@ -138,7 +143,11 @@ fun AddMealScreen(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp)
+                        .padding(16.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
                     Text("Confirmar $mealKey")
                 }
@@ -149,19 +158,17 @@ fun AddMealScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(DeepBlue)
+                .background(MaterialTheme.colorScheme.background)  // 💡 igual que Dashboard
                 .padding(padding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
 
-            // ======================================================
-            // 🔥 LISTA DE ITEMS YA ELEGIDOS (TEMPORAL)
-            // ======================================================
+
             if (selectedItems.isNotEmpty()) {
                 Text(
                     "Seleccionados",
-                    color = White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -189,17 +196,29 @@ fun AddMealScreen(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    leadingIcon = { Icon(Icons.Filled.Search, null) },
-                    placeholder = { Text("Buscar alimento...", color = White.copy(0.7f)) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Filled.Search,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    },
+                    placeholder = {
+                        Text(
+                            "Buscar alimento...",
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = White.copy(0.10f),
-                        unfocusedContainerColor = White.copy(0.08f),
-                        focusedTextColor = White,
-                        unfocusedTextColor = White,
-                        focusedBorderColor = Orange,
-                        unfocusedBorderColor = White.copy(0.25f),
-                        cursorColor = Orange,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        disabledContainerColor = MaterialTheme.colorScheme.surface,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f),
+                        cursorColor = MaterialTheme.colorScheme.primary
                     ),
                     modifier = Modifier.weight(1f)
                 )
@@ -207,8 +226,8 @@ fun AddMealScreen(
                 FilledTonalButton(
                     onClick = onScan,
                     colors = ButtonDefaults.filledTonalButtonColors(
-                        containerColor = White.copy(0.12f),
-                        contentColor = Orange
+                        containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+                        contentColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
                     Text("Escanear")
@@ -217,14 +236,14 @@ fun AddMealScreen(
 
             Text(
                 "Todos los alimentos",
-                color = White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
             )
 
             if (loading) {
                 Box(Modifier.fillMaxSize(), Alignment.Center) {
-                    CircularProgressIndicator(color = Orange)
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else {
                 LazyColumn(
@@ -252,20 +271,40 @@ private fun SelectedItemCard(
     onRemove: () -> Unit
 ) {
     Card(
-        colors = CardDefaults.cardColors(containerColor = White.copy(0.20f)),
-        modifier = Modifier.fillMaxWidth()
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(
+                width = 1.dp,
+                color = CardBorderSoft,
+                shape = MaterialTheme.shapes.medium
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = MaterialTheme.shapes.medium
     ) {
+
         Row(
             Modifier.padding(14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
-                Text(item.name, color = White, fontWeight = FontWeight.SemiBold)
-                Text("${item.kcal} kcal • ${item.portionLabel}", color = White.copy(0.8f))
+                Text(
+                    item.name,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    "${item.kcal} kcal • ${item.portionLabel}",
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
             }
             TextButton(onClick = onRemove) {
-                Text("Eliminar", color = Orange)
+                Text(
+                    "Eliminar",
+                    color = MaterialTheme.colorScheme.error
+                )
             }
         }
     }
@@ -278,12 +317,21 @@ private fun CatalogItemCard(
     onAdd: () -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val rot by animateFloatAsState(if (expanded) 180f else 0f)
+    val rot by animateFloatAsState(if (expanded) 180f else 0f, label = "expand")
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = White.copy(0.15f)),
-        modifier = Modifier.animateContentSize()
+        modifier = Modifier
+            .animateContentSize()
+            .border(
+                1.dp,
+                CardBorderSoft,
+                MaterialTheme.shapes.medium
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
     ) {
+
         Column(Modifier.fillMaxWidth()) {
 
             // HEADER
@@ -296,14 +344,27 @@ private fun CatalogItemCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(item.name, color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Text("${item.kcal} kcal • ${item.portionLabel}", color = White.copy(0.8f))
+                    Text(
+                        item.name,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        "${item.kcal} kcal • ${item.portionLabel}",
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                    )
                 }
-                Icon(Icons.Filled.ExpandMore, null, tint = White, modifier = Modifier.rotate(rot))
+                Icon(
+                    Icons.Filled.ExpandMore,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.rotate(rot)
+                )
             }
 
             if (expanded) {
-                Divider(color = White.copy(0.1f))
+                Divider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
                 MetricsGrid(item.preview)
 
                 Row(
@@ -316,8 +377,8 @@ private fun CatalogItemCard(
                         enabled = enabled,
                         onClick = onAdd,
                         colors = ButtonDefaults.filledTonalButtonColors(
-                            containerColor = Orange,
-                            contentColor = White
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
                         )
                     ) {
                         Icon(Icons.Filled.Add, null)
@@ -333,7 +394,11 @@ private fun CatalogItemCard(
 @Composable
 private fun MetricsGrid(p: FoodRepository.PortionPreview) {
     Column(Modifier.padding(14.dp)) {
-        Text("Métricas de la porción", color = White, fontWeight = FontWeight.Bold)
+        Text(
+            "Métricas de la porción",
+            color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.Bold
+        )
         Spacer(Modifier.height(8.dp))
 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -356,13 +421,25 @@ private fun MetricsGrid(p: FoodRepository.PortionPreview) {
 
 @Composable
 private fun MetricChip(label: String, value: String) {
-    Surface(color = White.copy(0.10f), shape = MaterialTheme.shapes.small) {
+    Surface(
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.06f),
+        shape = MaterialTheme.shapes.small
+    ) {
         Column(
             Modifier.padding(10.dp),
             horizontalAlignment = Alignment.Start
         ) {
-            Text(label, color = White.copy(0.7f), fontSize = 11.sp)
-            Text(value, color = White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(
+                label,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                fontSize = 11.sp
+            )
+            Text(
+                value,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
         }
     }
 }

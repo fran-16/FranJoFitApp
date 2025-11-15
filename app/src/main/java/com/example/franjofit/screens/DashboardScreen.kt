@@ -65,7 +65,7 @@ import com.example.franjofit.ui.theme.LightCardBlue
 import com.example.franjofit.ui.theme.ScreenBackground
 import com.example.franjofit.ui.theme.StoryCardBlue
 import com.example.franjofit.ui.theme.TextColorDarkBlue
-
+//Semáforo
 enum class SmpColor { GREEN, AMBER, RED }
 
 fun smpColorFrom(score: Int): SmpColor = when {
@@ -74,7 +74,7 @@ fun smpColorFrom(score: Int): SmpColor = when {
     else        -> SmpColor.RED
 }
 
-/** Semáforo vertical con 3 luces. */
+
 @Composable
 fun TrafficLight(
     score: Int,
@@ -145,9 +145,9 @@ fun SmpSummaryCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, CardBorderSoft, MaterialTheme.shapes.large),   // borde celeste suave
+            .border(1.dp, CardBorderSoft, MaterialTheme.shapes.large),
         colors = CardDefaults.cardColors(
-            containerColor = CardBackground                              // 💙 mismo fondo que calorías
+            containerColor = CardBackground
         ),
         shape = MaterialTheme.shapes.large
     ) {
@@ -156,7 +156,7 @@ fun SmpSummaryCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-            // 🌟 Semáforo dentro de un marco suave
+
             Box(
                 modifier = Modifier
                     .border(
@@ -173,7 +173,7 @@ fun SmpSummaryCard(
 
             Column(Modifier.weight(1f)) {
 
-                // Título
+
                 Text(
                     text = "SMP del día: $score",
                     color = MaterialTheme.colorScheme.onSurface,
@@ -183,7 +183,7 @@ fun SmpSummaryCard(
 
                 Spacer(Modifier.height(6.dp))
 
-                // Texto de explicación
+
                 Text(
                     text = when (smpColorFrom(score)) {
                         SmpColor.GREEN -> "Verde: vas muy bien, mantén fibra/proteína."
@@ -194,7 +194,7 @@ fun SmpSummaryCard(
                     fontSize = 13.sp
                 )
 
-                // Chip de pendientes (si hay)
+
                 if (pendingCount > 0) {
                     Spacer(Modifier.height(10.dp))
 

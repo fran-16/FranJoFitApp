@@ -30,6 +30,9 @@ PINA,piña,59,13,0.5,1.4,50
 MANGO,mango,56,15,0.8,1.6,60
 ARANDANO,arándanos,53,14,0.7,2.4,57
 FRESA,fresas,41,7.7,0.7,2,32
+POLLOPARRIL,pollo a la parrilla,0,0.0,31.0,0.0,165
+AGUACATE,aguacate,15,8.5,2.0,6.7,160
+QUINOA,quinua cocida,53,21.3,4.4,2.8,120
 PALTA,palta,15,9,2,7,160
 TOMATE,tomate,38,3.9,0.9,1.2,18
 LECHUGA,lechuga,15,2.9,1.4,1.3,15
@@ -39,6 +42,8 @@ ESPINACA,espinaca,15,3.6,2.9,2.2,23
 CEBOLLA,cebolla,10,9.3,1.1,1.7,40
 RES_MAGRA_COCIDA,res magra cocida,0,0,26,0,180
 POLLO_PECHUGA_COCIDA,pollo pechuga cocida,0,0,31,0,165
+ROLLITOS,rollitos de primavera,70,25.0,7.0,3.0,250
+GUACAMOLE,guacamole,15,9.0,2.0,7.0,160
 PESCADO_COCIDO,pescado blanco cocido,0,0,22,0,120
 ATUN_EN_AGUA,atún en agua (lata),0,0,23,0,110
 LECHE_DESCREMADA,leche descremada,37,5,3.4,0,42
@@ -46,8 +51,15 @@ QUESO_FRESCO,queso fresco,30,3.1,14,0,250
 MANI_TOSTADO,maní tostado,14,16,26,8.5,567
 ALMENDRAS,almendras,15,22,21,12,579
 NUECES,nueces,15,14,15,7,654
+CILANTRO,cilantro,0,3.7,2.1,2.8,23
+MAYONESA,mayonesa,0,1.0,1.0,0.0,700
+AJI,aji o crema de aji,15,8.0,1.5,3.0,100
 AZUCAR,azúcar,65,100,0,0,387
 MIEL,miel,58,82,0.3,0,304
+POLLOASADO,pollo asado,0,0.0,31.0,0.0,165
+PAPASFRITAS,papas fritas,75,35.0,3.5,3.5,319
+INCABEBIDA,inca kola,68,10.0,0.0,0.0,40
+SALSA,salsa,30,9.0,1.0,1.5,40
 GASEOSA_AZUCARADA,gaseosa azucarada,65,10.6,0,0,42
 JUGO_NARANJA_AZUCARADO,jugo de naranja azucarado,57,12,0.5,0.2,48
 CHICHA_MORADA_AZUCARADA,chicha morada azucarada,60,11,0.2,0.3,45
@@ -56,3 +68,10 @@ ACEITE_OLIVA,aceite de oliva,0,0,0,0,884
 LENGUADO_COCIDO,lenguado cocido,0,0,18,0,90
 FREJOL_PALIDO,frejol pálido,30,23,8.9,8.7,132
 LIMON,limón,20,9,1.1,2.8,29
+HELADOCHOCO,helado de chocolate,60,25.0,4.0,1.5,200
+HELADOVAIN,helado de vainilla,60,22.0,3.5,0.5,180
+NATAMONT,nata montada,0,5.0,2.0,0.0,350
+GOFRE,gofre,76,45.0,7.0,2.0,290
+SIROPE,sirope de arce,65,67.0,0.0,0.0,260
+SIROPEVAIN,sirope de vainilla,65,50.0,0.0,0.0,200
+BARQUILLO,barquillo,75,75.0,5.0,2.0,450
