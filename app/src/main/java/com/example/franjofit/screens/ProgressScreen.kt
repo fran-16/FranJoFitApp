@@ -5,11 +5,15 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -31,6 +35,7 @@ fun ProgressScreen() {
 
     var weights by remember { mutableStateOf<List<WeightEntry>>(emptyList()) }
     val scope = rememberCoroutineScope()
+    val scroll = rememberScrollState()
 
     LaunchedEffect(Unit) {
         scope.launch {
@@ -42,6 +47,7 @@ fun ProgressScreen() {
         Modifier
             .fillMaxSize()
             .background(CardBorderSoft)
+            .verticalScroll(scroll)
             .padding(16.dp)
     ) {
         Text(
@@ -55,20 +61,32 @@ fun ProgressScreen() {
 
         if (weights.isEmpty()) {
             Box(
-                Modifier.fillMaxWidth().padding(top = 60.dp),
+                Modifier
+                    .fillMaxWidth()
+                    .padding(top = 60.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text("Sin datos todavía", color = TextDark.copy(0.7f))
             }
         } else {
+            // Peso
             WeightChartCard(weights)
             Spacer(Modifier.height(20.dp))
 
+            // Calorías últimos 7 días (datos de ejemplo por ahora)
+            DailyCaloriesCard(
+                calories = listOf(1800f, 1950f, 2100f, 1600f, 2000f, 1900f, 2200f)
+            )
+            Spacer(Modifier.height(20.dp))
+
+            // Macros
             MacroChartCard(
                 carbs = 180f,
                 protein = 70f,
                 fiber = 25f
             )
+
+            Spacer(Modifier.height(40.dp))
         }
     }
 }
@@ -148,7 +166,9 @@ fun WeightLineChart(weights: List<WeightEntry>) {
     val points = weights.map { it.date to it.weight }
 
     Box(
-        Modifier.height(220.dp).fillMaxWidth()
+        Modifier
+            .height(220.dp)
+            .fillMaxWidth()
     ) {
 
         Canvas(Modifier.fillMaxSize()) {
@@ -201,6 +221,64 @@ fun WeightLineChart(weights: List<WeightEntry>) {
 }
 
 @Composable
+fun DailyCaloriesCard(calories: List<Float>) {
+
+    val labels = listOf("L", "M", "X", "J", "V", "S", "D")
+    val max = calories.maxOrNull()?.takeIf { it > 0f } ?: 1f
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.6f)),
+        shape = MaterialTheme.shapes.large
+    ) {
+        Column(Modifier.padding(16.dp)) {
+
+            Text("Calorías últimos 7 días", color = TextDark, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(10.dp))
+
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(160.dp)
+            ) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val barWidth = size.width / (calories.size * 2f)
+                    val bottom = size.height - 24f
+
+                    calories.forEachIndexed { index, value ->
+                        val ratio = value / max
+                        val barHeight = ratio * (bottom - 8f)
+                        val xCenter = (index * 2 + 1) * barWidth
+                        val top = bottom - barHeight
+
+                        drawRoundRect(
+                            color = Color(0xFF4FC3F7),
+                            topLeft = Offset(xCenter - barWidth / 2f, top),
+                            size = Size(barWidth, barHeight),
+                            cornerRadius = CornerRadius(12f, 12f)
+                        )
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(6.dp))
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                calories.forEachIndexed { index, value ->
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(labels.getOrElse(index) { "" }, color = TextDark, fontSize = 11.sp)
+                        Text("${value.toInt()} kcal", color = TextDark.copy(0.7f), fontSize = 10.sp)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun MacroChartCard(carbs: Float, protein: Float, fiber: Float) {
 
     val total = (carbs + protein + fiber).takeIf { it > 0 } ?: 1f
@@ -226,15 +304,21 @@ fun MacroChartCard(carbs: Float, protein: Float, fiber: Float) {
             ) {
                 Row(Modifier.fillMaxSize()) {
                     Box(
-                        Modifier.weight(carbRatio).fillMaxHeight()
+                        Modifier
+                            .weight(carbRatio)
+                            .fillMaxHeight()
                             .background(Color(0xFF4FC3F7))
                     )
                     Box(
-                        Modifier.weight(protRatio).fillMaxHeight()
+                        Modifier
+                            .weight(protRatio)
+                            .fillMaxHeight()
                             .background(Color(0xFF81C784))
                     )
                     Box(
-                        Modifier.weight(fibRatio).fillMaxHeight()
+                        Modifier
+                            .weight(fibRatio)
+                            .fillMaxHeight()
                             .background(Color(0xFFFFF176))
                     )
                 }
@@ -252,13 +336,17 @@ fun MacroChartCard(carbs: Float, protein: Float, fiber: Float) {
 @Composable
 fun MacroLegend(label: String, grams: Float, color: Color) {
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(10.dp).background(color, MaterialTheme.shapes.small)
+                Modifier
+                    .size(10.dp)
+                    .background(color, MaterialTheme.shapes.small)
             )
             Spacer(Modifier.width(8.dp))
             Text(label, color = TextDark.copy(0.9f), fontSize = 13.sp)

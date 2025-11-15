@@ -10,10 +10,13 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExpandMore
@@ -22,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -30,7 +34,6 @@ import androidx.compose.ui.unit.sp
 import com.example.franjofit.BuildConfig
 import com.example.franjofit.data.FoodRepository
 import com.example.franjofit.data.recognizeWithOpenAI
-import com.example.franjofit.ui.theme.DeepBlue
 import com.example.franjofit.ui.theme.Orange
 import com.example.franjofit.ui.theme.White
 import kotlinx.coroutines.launch
@@ -42,6 +45,9 @@ fun ScanFoodScreen(
     onCancel: () -> Unit = {},
     onUseResult: (name: String, kcal: Int, portion: String) -> Unit
 ) {
+
+    val PrimarySoft = Color(0xFF43C7E8) // Color celeste de la barra superior
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -50,14 +56,16 @@ fun ScanFoodScreen(
     var isProcessing by remember { mutableStateOf(false) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
-    //Carga catálogo
+    val scrollState = rememberScrollState()
+
+
     var catalog by remember { mutableStateOf<List<FoodRepository.CatalogUiItem>>(emptyList()) }
     LaunchedEffect(Unit) {
         runCatching { FoodRepository.listCatalogForUi(context) }
             .onSuccess { catalog = it }
     }
 
-    //Cámara
+
     val takePreviewLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.TakePicturePreview()
     ) { bmp ->
@@ -112,16 +120,22 @@ fun ScanFoodScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Escanear alimento") },
-                navigationIcon = { TextButton(onClick = onCancel) { Text("Cancelar") } }
+                title = { Text("Escanear alimento", color = Color.Black) },
+                navigationIcon = { TextButton(onClick = onCancel) { Text("Cancelar", color = Color.Black) } },
+                // Color Celeste para la barra superior
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = PrimarySoft)
             )
-        }
+        },
+        // Fondo blanco para el Scaffold
+        containerColor = Color.White
     ) { padding ->
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(DeepBlue)
+
+                .background(Color.White)
+                .verticalScroll(scrollState)
                 .padding(padding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -138,8 +152,10 @@ fun ScanFoodScreen(
                         pickMediaLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
-                    }
-                ) { Text("Galería", color = White) }
+                    },
+
+                    border = BorderStroke(1.dp, Color.DarkGray)
+                ) { Text("Galería", color = Color.Black) } // Texto oscuro
             }
 
             preview?.let { bmp ->
@@ -155,12 +171,15 @@ fun ScanFoodScreen(
             if (isProcessing) LinearProgressIndicator(Modifier.fillMaxWidth())
             errorMsg?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
-            Text("Resultados", color = White, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+
+            Text("Resultados", color = Color.Black, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
 
             if (labels.isEmpty() && !isProcessing) {
-                Text("Toma una foto o elige de la galería.", color = White.copy(0.8f))
+
+                Text("Toma una foto o elige de la galería.", color = Color.DarkGray)
             } else {
                 labels.take(5).forEach { item ->
+
 
                     val match = catalog.firstOrNull {
                         it.name.equals(item.displayName, ignoreCase = true)
@@ -170,6 +189,7 @@ fun ScanFoodScreen(
                         detected = item,
                         catalogItem = match,
                         onUse = {
+
                             val kcal = match?.preview?.kcal ?: item.kcalEstimate
                             val portion = match?.portionLabel ?: item.portion
                             val displayName = match?.name ?: item.displayName
@@ -186,8 +206,6 @@ fun ScanFoodScreen(
 }
 
 
-// ==== MODELO ====
-
 private data class LabeledFood(
     val displayName: String,
     val confidence: Float,
@@ -196,14 +214,13 @@ private data class LabeledFood(
 )
 
 
-
-
 private suspend fun analyzeWithOpenAI(
     bmp: Bitmap,
     onResult: (List<LabeledFood>) -> Unit,
     onError: (String) -> Unit,
     setBusy: (Boolean) -> Unit
 ) {
+
     try {
         setBusy(true)
 
@@ -265,22 +282,28 @@ private suspend fun analyzeWithOpenAI(
 }
 
 
-
-
 @Composable
 private fun ScanResultCard(
     detected: LabeledFood,
     catalogItem: FoodRepository.CatalogUiItem?,
     onUse: () -> Unit
 ) {
-    var expanded by remember { mutableStateOf(false) }
+
+    var expanded by remember { mutableStateOf(true) }
     val rot by animateFloatAsState(if (expanded) 180f else 0f)
 
-    val kcal = catalogItem?.preview?.kcal ?: detected.kcalEstimate
-    val portion = catalogItem?.portionLabel ?: detected.portion
+    // Priorizar los datos del catálogo (CSV)
+    val itemData = catalogItem?.preview
+    val displayName = catalogItem?.name ?: detected.displayName
+    val kcal = itemData?.kcal ?: detected.kcalEstimate
+    val portion = itemData?.portionLabel ?: detected.portion
+
+    val CardBackgroundSoft = Color(0xFFF0F8FF)
+    val PrimarySoft = Color(0xFF43C7E8)
 
     Card(
-        colors = CardDefaults.cardColors(containerColor = White.copy(0.15f)),
+        colors = CardDefaults.cardColors(containerColor = CardBackgroundSoft),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier.fillMaxWidth().animateContentSize()
     ) {
 
@@ -295,18 +318,23 @@ private fun ScanResultCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(Modifier.weight(1f)) {
-                    Text(detected.displayName, color = White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    Text("$kcal kcal • $portion", color = White.copy(0.85f), fontSize = 13.sp)
-                    Text("${(detected.confidence * 100).toInt()}% conf", color = White.copy(0.7f), fontSize = 11.sp)
+                    Text(displayName, color = Color.Black, fontSize = 18.sp, fontWeight = FontWeight.SemiBold)
+                    Text("$kcal kcal • $portion", color = Color.DarkGray, fontSize = 14.sp)
+                    // Muestra la confianza de la IA
+                    Text("${(detected.confidence * 100).toInt()}% conf", color = Color.Gray, fontSize = 12.sp)
                 }
-                Icon(Icons.Filled.ExpandMore, null, tint = White, modifier = Modifier.rotate(rot))
+                Icon(Icons.Filled.ExpandMore, null, tint = Color.Black.copy(0.7f), modifier = Modifier.rotate(rot))
             }
 
             if (expanded) {
-                Divider(color = White.copy(0.15f))
+                Divider(color = Color.LightGray)
 
-                if (catalogItem != null) {
-                    ScanMetricsGrid(catalogItem.preview)
+                if (itemData != null) {
+
+                    ScanMetricsGrid(itemData, PrimarySoft)
+                } else {
+
+                    EstimatedMetricsGrid(detected, PrimarySoft)
                 }
 
                 Row(
@@ -330,41 +358,64 @@ private fun ScanResultCard(
 }
 
 
-//métricas
-
 @Composable
-private fun ScanMetricsGrid(p: FoodRepository.PortionPreview) {
+private fun EstimatedMetricsGrid(detected: LabeledFood, chipColor: Color) {
     Column(Modifier.padding(14.dp)) {
-        Text("Métricas de la porción", color = White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text("Métricas estimadas", color = Color.Black, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
         Spacer(Modifier.height(8.dp))
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MetricChip("IG", p.ig.toString())
-            MetricChip("Gramos", "${p.grams} g")
-            MetricChip("GL", String.format(Locale.US, "%.1f", p.gl))
-        }
-        Spacer(Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MetricChip("Carbohidratos", "${p.carbsG} g")
-            MetricChip("Proteína", "${p.proteinG} g")
-            MetricChip("Fibra", "${p.fiberG} g")
-        }
-        Spacer(Modifier.height(6.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MetricChip("Energía", "${p.kcal} kcal")
+            MetricChip("Porción", detected.portion, chipColor)
+            MetricChip("Energía", "${detected.kcalEstimate} kcal", chipColor)
         }
     }
 }
 
 @Composable
-private fun MetricChip(label: String, value: String) {
-    Surface(color = White.copy(0.10f), shape = MaterialTheme.shapes.small) {
+private fun ScanMetricsGrid(p: FoodRepository.PortionPreview, chipColor: Color) {
+    Column(Modifier.padding(14.dp)) {
+        Text("Métricas de la porción", color = Color.Black, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(8.dp))
+
+        // Fila 1: IG, Gramos, GL
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MetricChip("IG", p.ig.toString(), chipColor)
+            // Se asume que FoodRepository.PortionPreview puede calcular los gramos o toma el valor por defecto
+            MetricChip("Gramos", "${p.grams} g", chipColor)
+            MetricChip("GL", String.format(Locale.US, "%.1f", p.gl), chipColor)
+        }
+        Spacer(Modifier.height(6.dp))
+
+        // Fila 2: Macronutrientes
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MetricChip("Carbohidratos", "${p.carbsG} g", chipColor)
+            MetricChip("Proteína", "${p.proteinG} g", chipColor)
+            MetricChip("Fibra", "${p.fiberG} g", chipColor)
+        }
+        Spacer(Modifier.height(6.dp))
+
+        // Fila 3: Energía
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            MetricChip("Energía", "${p.kcal} kcal", chipColor)
+        }
+    }
+}
+
+@Composable
+private fun MetricChip(label: String, value: String, chipColor: Color) {
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = BorderStroke(1.dp, Color.LightGray.copy(0.7f)),
+        shape = MaterialTheme.shapes.small,
+        modifier = Modifier.defaultMinSize(minWidth = 80.dp)
+    ) {
         Column(
-            Modifier.padding(10.dp),
+            Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
             horizontalAlignment = Alignment.Start
         ) {
-            Text(label, color = White.copy(0.7f), fontSize = 11.sp)
-            Text(value, color = White, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+            Text(label, color = Color.Gray, fontSize = 10.sp)
+            Text(value, color = Color.Black, fontSize = 14.sp, fontWeight = FontWeight.Medium)
         }
     }
 }

@@ -54,12 +54,10 @@ fun AddMealScreen(
     val snackbar = remember { SnackbarHostState() }
     var isSaving by remember { mutableStateOf(false) }
 
-    // ======================================================
-    // 🔥 LISTA TEMPORAL DE ALIMENTOS ELEGIDOS (MULTIPLE)
-    // ======================================================
+
     var selectedItems by remember { mutableStateOf<List<FoodRepository.CatalogUiItem>>(emptyList()) }
 
-    // Si viene desde Scan → añadir automáticamente
+
     LaunchedEffect(scannedName, scannedKcal, scannedPortion) {
         if (scannedName != null) {
             selectedItems = selectedItems + FoodRepository.CatalogUiItem(
@@ -73,15 +71,13 @@ fun AddMealScreen(
                     proteinG = 0.0,
                     fiberG = 0.0,
                     kcal = scannedKcal ?: 100,
-                    gl = 0.0
+                    gl = 0.0,
+                    portionLabel = "100g"
                 )
             )
         }
     }
 
-    // ======================================================
-    // Cargar catálogo CSV
-    // ======================================================
     var catalog by remember { mutableStateOf<List<FoodRepository.CatalogUiItem>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var query by remember { mutableStateOf("") }
@@ -104,9 +100,7 @@ fun AddMealScreen(
         else catalog.filter { it.name.contains(query, ignoreCase = true) }
     }
 
-    // ======================================================
-    // UI
-    // ======================================================
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -186,9 +180,7 @@ fun AddMealScreen(
                 Spacer(Modifier.height(14.dp))
             }
 
-            // ======================================================
-            // Búsqueda + botón escanear
-            // ======================================================
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -230,9 +222,6 @@ fun AddMealScreen(
                 fontWeight = FontWeight.SemiBold
             )
 
-            // ======================================================
-            // Lista del catálogo
-            // ======================================================
             if (loading) {
                 Box(Modifier.fillMaxSize(), Alignment.Center) {
                     CircularProgressIndicator(color = Orange)
@@ -257,9 +246,6 @@ fun AddMealScreen(
     }
 }
 
-// ============================================================
-// TARJETA PARA LISTA SELECCIONADA (CON ELIMINAR)
-// ============================================================
 @Composable
 private fun SelectedItemCard(
     item: FoodRepository.CatalogUiItem,
@@ -285,9 +271,6 @@ private fun SelectedItemCard(
     }
 }
 
-// ============================================================
-// TARJETA DE CATALOGO (EXPANDIBLE)
-// ============================================================
 @Composable
 private fun CatalogItemCard(
     item: FoodRepository.CatalogUiItem,

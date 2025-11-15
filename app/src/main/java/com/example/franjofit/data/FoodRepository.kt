@@ -15,9 +15,7 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.round
 
-// -------------------------
-// MODELOS (catálogo de alimentos)
-// -------------------------
+
 data class Food(
     val id: String,
     val nombre: String,
@@ -37,9 +35,7 @@ private data class PortionCalc(
     val gl: Double
 )
 
-// -------------------------
-// REPO FIRESTORE + CATÁLOGO
-// -------------------------
+
 object FoodRepository {
 
     private val db = FirebaseFirestore.getInstance()
@@ -49,9 +45,7 @@ object FoodRepository {
     private var catalogLoaded = false
     private var foods: List<Food> = emptyList()
 
-    // ============================================================
-    //  NUEVO: Guardar un desayuno/almuerzo/cena COMPLETO
-    // ============================================================
+
     suspend fun saveMealItems(
         context: Context,
         mealType: String,
@@ -68,7 +62,6 @@ object FoodRepository {
         val snapshot = mealDoc.get().await()
         val existing = snapshot.get(mealType) as? List<Map<String, Any>> ?: emptyList()
 
-        // Convertimos cada CatalogUiItem a entrada completa para Firestore
         val formatted = items.map { f ->
             mapOf(
                 "id" to f.name,
@@ -84,16 +77,14 @@ object FoodRepository {
             )
         }
 
-        // Guardamos junto con lo que ya estaba (append)
+
         mealDoc.set(
             mapOf(mealType to (existing + formatted)),
             SetOptions.merge()
         ).await()
     }
 
-    // ============================================================
-    //  Funciones anteriores (las dejamos igual)
-    // ============================================================
+
 
     suspend fun addMealItemAuto(
         context: Context,
@@ -155,9 +146,6 @@ object FoodRepository {
         } ?: emptyMap()
     }
 
-    // ============================================================
-    //  Catálogo
-    // ============================================================
     data class PortionPreview(
         val ig: Int,
         val grams: Int,
@@ -165,7 +153,8 @@ object FoodRepository {
         val proteinG: Double,
         val fiberG: Double,
         val kcal: Int,
-        val gl: Double
+        val gl: Double,
+        val portionLabel: String
     )
 
     data class CatalogUiItem(
@@ -182,6 +171,8 @@ object FoodRepository {
         val food = findByNameFuzzy(context, displayName) ?: return null
         val preset = presetFor(displayName)
         val grams = preset?.grams ?: 100
+
+        val portionLabel = preset?.text ?: "$grams g"
         val calc = calcPortion(food, grams)
         return PortionPreview(
             ig = food.ig,
@@ -190,9 +181,12 @@ object FoodRepository {
             proteinG = calc.proteinG,
             fiberG = calc.fiberG,
             kcal = calc.kcal,
-            gl = calc.gl
+            gl = calc.gl,
+            portionLabel = portionLabel
         )
     }
+
+
     suspend fun listCatalogForUi(context: Context): List<CatalogUiItem> {
         loadCatalog(context)
 
@@ -213,7 +207,8 @@ object FoodRepository {
                     proteinG = calc.proteinG,
                     fiberG = calc.fiberG,
                     kcal = calc.kcal,
-                    gl = calc.gl
+                    gl = calc.gl,
+                    portionLabel = label
                 )
             )
         }.sortedBy { it.name.lowercase(Locale.ROOT) }
