@@ -15,9 +15,6 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.round
 
-// -------------------------
-// MODELOS (catálogo de alimentos)
-// -------------------------
 data class Food(
     val id: String,
     val nombre: String,
@@ -28,7 +25,6 @@ data class Food(
     val kcal100g: Int
 )
 
-// Porción calculada a partir de Food + gramos
 private data class PortionCalc(
     val grams: Int,
     val carbsG: Double,
@@ -38,52 +34,33 @@ private data class PortionCalc(
     val gl: Double
 )
 
-// -------------------------
-// REPO FIRESTORE + CATÁLOGO
-// -------------------------
 object FoodRepository {
 
-    // ---------- Firebase ----------
     private val db = FirebaseFirestore.getInstance()
     private val auth = FirebaseAuth.getInstance()
 
-    // ---------- Catálogo ----------
     private const val ASSET_FILE = "alimentos.csv"   // nombre que usas en assets
     private var catalogLoaded = false
     private var foods: List<Food> = emptyList()
 
-    // =========================
-    // API PÚBLICA
-    // =========================
 
-    /**
-     * Agrega un ítem a (desayuno/almuerzo/cena/extras) usando porciones predefinidas
-     * según el nombre visible (displayName). Si no hay preset → usa 100 g.
-     *
-     * Guarda TODOS los campos que necesitas para SMP:
-     *  - id, name, grams, ig, carbs_g, protein_g, fiber_g, kcal, gl, portion_text
-     */
     suspend fun addMealItemAuto(
         context: Context,
-        mealType: String,           // "desayuno" | "almuerzo" | "cena" | "extras"
-        displayName: String,        // ej: "Avena cocida"
+        mealType: String,
+        displayName: String,
         portionTextOverride: String? = null
     ) {
         val uid = auth.currentUser?.uid ?: return
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-        // 1) Buscar alimento en el catálogo (match flexible)
         val food = findByNameFuzzy(context, displayName) ?: return
 
-        // 2) Resolver porción preset (o 100 g)
         val preset = presetFor(displayName)
         val grams = preset?.grams ?: 100
         val portionText = portionTextOverride ?: preset?.text ?: "$grams g"
 
-        // 3) Calcular macros y GL para esa porción
         val calc = calcPortion(food, grams)
 
-        // 4) Armar payload con todo (SMP-ready)
         val mealData = mapOf(
             "id" to food.id,
             "name" to food.nombre,
@@ -97,7 +74,6 @@ object FoodRepository {
             "portion_text" to portionText
         )
 
-        // 5) Append al array del día (no rompemos tu estructura actual)
         val mealDoc = db.collection("users")
             .document(uid)
             .collection("meals")
@@ -110,7 +86,6 @@ object FoodRepository {
         mealDoc.set(mapOf(mealType to updatedMeals), SetOptions.merge()).await()
     }
 
-    /** Igual que antes: devuelve el documento del día con los arrays por tipo de comida. */
     suspend fun getMealsForToday(): Map<String, List<Map<String, Any>>> {
         val uid = auth.currentUser?.uid ?: return emptyMap()
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -127,10 +102,6 @@ object FoodRepository {
         } ?: emptyMap()
     }
 
-    // =========================
-    // PREVIEW OPCIONAL (para UI expandible)
-    // =========================
-
     data class PortionPreview(
         val ig: Int,
         val grams: Int,
@@ -141,7 +112,6 @@ object FoodRepository {
         val gl: Double
     )
 
-    /** Devuelve la porción preset + métricas sin guardar aún (o null si no se encuentra). */
     suspend fun getPortionPreview(
         context: Context,
         displayName: String
@@ -161,9 +131,6 @@ object FoodRepository {
         )
     }
 
-    // =========================
-    // Catálogo: lectura + búsqueda
-    // =========================
     private suspend fun loadCatalog(context: Context) = withContext(Dispatchers.IO) {
         if (catalogLoaded) return@withContext
         val input = context.assets.open(ASSET_FILE)
@@ -210,9 +177,6 @@ object FoodRepository {
         return out
     }
 
-    // =========================
-    // Helpers de normalización y matching
-    // =========================
     private fun norm(s: String): String =
         Normalizer.normalize(s.lowercase(Locale.ROOT), Normalizer.Form.NFD)
             .replace(Regex("\\p{InCombiningDiacriticalMarks}+"), "")
@@ -233,9 +197,6 @@ object FoodRepository {
             overlap * 10 - abs(c.length - q.length)
         }
 
-    // =========================
-    // Porciones preset (opción A: porciones predefinidas)
-    // =========================
     private data class PortionPreset(val grams: Int, val text: String)
 
     private fun presetFor(displayName: String): PortionPreset? {
@@ -262,9 +223,6 @@ object FoodRepository {
         }
     }
 
-    // =========================
-    // Cálculo de macros por porción + GL
-    // =========================
     private fun calcPortion(food: Food, grams: Int): PortionCalc {
         val carbs  = food.carbs100g   * grams / 100.0
         val fiber  = food.fiber100g   * grams / 100.0
@@ -285,15 +243,13 @@ object FoodRepository {
         )
     }
 
-    // ===== UI helper para listar TODO el catálogo con métricas listas =====
     data class CatalogUiItem(
         val name: String,
         val portionLabel: String,
         val kcal: Int,
-        val preview: PortionPreview     // incluye ig, grams, gl, carbs/prot/fibra
+        val preview: PortionPreview
     )
 
-    /** Devuelve todos los alimentos del CSV con su porción sugerida y métricas precalculadas. */
     suspend fun listCatalogForUi(context: Context): List<CatalogUiItem> {
         loadCatalog(context)
         return foods.map { f ->
@@ -317,7 +273,6 @@ object FoodRepository {
             )
         }.sortedBy { it.name.lowercase(Locale.ROOT) }
     }
-
 
     private fun round1(v: Double) = round(v * 10.0) / 10.0
 }
