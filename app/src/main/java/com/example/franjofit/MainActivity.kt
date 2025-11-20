@@ -9,7 +9,6 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import com.example.franjofit.nav.AppNav
-import com.example.franjofit.reminders.SmpReminderManager
 import com.example.franjofit.ui.theme.FranJoTheme
 
 class MainActivity : ComponentActivity() {
@@ -30,7 +29,9 @@ class MainActivity : ComponentActivity() {
                 Manifest.permission.ACTIVITY_RECOGNITION
             ) == PackageManager.PERMISSION_GRANTED
 
-            if (!granted) requestActivityRecognition.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+            if (!granted) {
+                requestActivityRecognition.launch(Manifest.permission.ACTIVITY_RECOGNITION)
+            }
         }
 
         // POST_NOTIFICATIONS
@@ -40,15 +41,20 @@ class MainActivity : ComponentActivity() {
                 Manifest.permission.POST_NOTIFICATIONS
             ) == PackageManager.PERMISSION_GRANTED
 
-            if (!granted) requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            if (!granted) {
+                requestNotificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
 
-        // PROGRAMAR RECORDATORIOS SMP
-        SmpReminderManager.scheduleRepeating(this)
+        // 🔔 YA NO programamos recordatorios repetidos aquí
+        // SmpReminderManager.scheduleRepeating(this)  // ❌ lo quitamos
+
+        // 🧠 Si venimos desde la notificación SMP
+        val openSmp = intent?.getBooleanExtra("open_smp", false) ?: false
 
         setContent {
             FranJoTheme {
-                AppNav()
+                AppNav(openSmpFromNotification = openSmp)
             }
         }
     }

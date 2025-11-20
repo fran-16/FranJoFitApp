@@ -11,7 +11,7 @@ object SmpNotifier {
         val manager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager?
 
-        if (manager != null) {
+        if (manager != null && notification != null) {
             manager.notify(NOTIFICATION_ID, notification)
         }
     }

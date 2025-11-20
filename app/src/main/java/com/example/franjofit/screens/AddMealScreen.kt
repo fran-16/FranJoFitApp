@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.franjofit.data.FoodRepository
+import com.example.franjofit.reminders.SmpReminderManager
 import com.example.franjofit.ui.theme.CardBorderSoft
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -53,6 +54,7 @@ fun AddMealScreen(
 
     var selectedItems by remember { mutableStateOf<List<FoodRepository.CatalogUiItem>>(emptyList()) }
 
+    // Si viene algo escaneado con la cámara/IA, se agrega a la lista
     LaunchedEffect(scannedName, scannedKcal, scannedPortion) {
         if (scannedName != null) {
             selectedItems = selectedItems + FoodRepository.CatalogUiItem(
@@ -77,6 +79,7 @@ fun AddMealScreen(
     var loading by remember { mutableStateOf(true) }
     var query by remember { mutableStateOf("") }
 
+    // Cargar catálogo
     LaunchedEffect(Unit) {
         loading = true
         try {
@@ -127,12 +130,21 @@ fun AddMealScreen(
                         scope.launch {
                             try {
                                 isSaving = true
+
+                                // 1️⃣ Guardar la comida en Firebase
                                 FoodRepository.saveMealItems(
                                     context = context,
                                     mealType = mealKey.lowercase(),
                                     items = selectedItems
                                 )
                                 snackbar.showSnackbar("Guardado correctamente")
+
+                                // 2️⃣ Programar notificación a 1 minuto
+                                SmpReminderManager.schedulePostprandialReminder(
+                                    context = context,
+                                    minutes = 1L   // 👈 aquí 1 minuto
+                                )
+
                                 onBack()
                             } catch (e: Exception) {
                                 snackbar.showSnackbar("Error: ${e.message}")
@@ -153,17 +165,17 @@ fun AddMealScreen(
                 }
             }
         }
+
     ) { padding ->
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)  // 💡 igual que Dashboard
+                .background(MaterialTheme.colorScheme.background)
                 .padding(padding)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-
 
             if (selectedItems.isNotEmpty()) {
                 Text(
@@ -186,7 +198,6 @@ fun AddMealScreen(
 
                 Spacer(Modifier.height(14.dp))
             }
-
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -334,7 +345,6 @@ private fun CatalogItemCard(
 
         Column(Modifier.fillMaxWidth()) {
 
-            // HEADER
             Row(
                 modifier = Modifier
                     .fillMaxWidth()

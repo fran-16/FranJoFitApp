@@ -9,6 +9,7 @@ object Routes {
     const val Dashboard = "dashboard"
     const val AddMeal = "add_meal/{meal}"
     const val ScanFood = "scan_food/{meal}"   // meal: desayuno|almuerzo|cena|extras
+    const val FormsSmp = "forms_smp"
 
 
 }

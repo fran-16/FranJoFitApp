@@ -1,19 +1,38 @@
 package com.example.franjofit.nav
 
 import android.net.Uri
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.*
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.franjofit.data.GoalsRepository
 import com.example.franjofit.screens.*
 import com.google.firebase.auth.FirebaseAuth
+import kotlinx.coroutines.launch
+import androidx.compose.material3.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 
 @Composable
-fun AppNav() {
+fun AppNav(
+    openSmpFromNotification: Boolean = false
+) {
 
     val nav = rememberNavController()
+
+    // Si viene desde la notificación de SMP, lo mandamos al Dashboard y luego al formulario
+    LaunchedEffect(openSmpFromNotification) {
+        if (openSmpFromNotification) {
+            nav.navigate(Routes.Dashboard) {
+                popUpTo(0) { inclusive = false }
+            }
+            nav.navigate(Routes.FormsSmp)
+        }
+    }
 
     NavHost(
         navController = nav,
@@ -114,6 +133,10 @@ fun AppNav() {
                 onOpenProfile = { nav.navigate(Routes.Profile) },
                 onOpenAddMeal = { mealKey ->
                     nav.navigate("add_meal/$mealKey")
+                },
+                onUpdateBaseGoal = { /* si luego quieres algo extra */ },
+                onOpenReminders = {
+                    // por ahora vacío
                 }
             )
         }
@@ -178,5 +201,35 @@ fun AppNav() {
                 }
             )
         }
+
+        // =====================================
+        // FORMULARIO SMP (síntomas postprandiales)
+        // =====================================
+        composable(Routes.FormsSmp) {
+            val scope = rememberCoroutineScope()
+            var baseScore by remember { mutableStateOf<Int?>(null) }
+
+            LaunchedEffect(Unit) {
+                baseScore = GoalsRepository.getTodaySmpCurrent()
+            }
+
+            if (baseScore == null) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                FormsSMPScreen(
+                    baseScore = baseScore!!,
+                    onSubmit = { newScore ->
+                        scope.launch {
+                            GoalsRepository.updateTodaySmpCurrent(newScore)
+                        }
+                    },
+                    onBack = { nav.popBackStack() }
+                )
+            }
+        }
+
+
     }
 }

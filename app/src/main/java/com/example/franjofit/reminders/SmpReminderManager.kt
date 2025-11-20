@@ -11,16 +11,11 @@ import androidx.core.app.NotificationCompat
 import com.example.franjofit.MainActivity
 import com.example.franjofit.R
 
-import android.app.Notification
-
-
 object SmpReminderManager {
 
     private const val CHANNEL_ID = "SMP_CHANNEL"
     private const val CHANNEL_NAME = "Recordatorios SMP"
     private const val ALARM_REQUEST_CODE = 5511
-    private const val REMINDER_INTERVAL_MINUTES = 2L
-
 
     private fun createChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -38,9 +33,7 @@ object SmpReminderManager {
         }
     }
 
-
     fun sendNotification(context: Context) {
-
         createChannel(context)
 
         val intent = Intent(context, MainActivity::class.java).apply {
@@ -55,11 +48,6 @@ object SmpReminderManager {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-
-        val bigStyle = NotificationCompat.BigTextStyle()
-            .setBigContentTitle("¿Cómo te sentiste después de tu última comida?")
-            .bigText("Toca para responder una mini-encuesta SMP.")
-
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.mipmap.ic_launcher)
             .setStyle(
@@ -72,34 +60,42 @@ object SmpReminderManager {
             .setContentIntent(pendingIntent)
             .build()
 
-
-
         SmpNotifier.show(context, notification)
-
     }
 
 
-    fun scheduleRepeating(context: Context) {
-
+    fun schedulePostprandialReminder(
+        context: Context,
+        minutes: Long
+    ) {
+        val appContext = context.applicationContext
         val alarmManager =
-            context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+            appContext.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-        val intent = Intent(context, SmpReminderReceiver::class.java)
+        val intent = Intent(appContext, SmpReminderReceiver::class.java)
 
         val pendingIntent = PendingIntent.getBroadcast(
-            context,
+            appContext,
             ALARM_REQUEST_CODE,
             intent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val intervalMs = REMINDER_INTERVAL_MINUTES * 60 * 1000L
+        val triggerAt = System.currentTimeMillis() + minutes * 60_000L
 
-        alarmManager.setRepeating(
-            AlarmManager.RTC_WAKEUP,
-            System.currentTimeMillis() + intervalMs,
-            intervalMs,
-            pendingIntent
-        )
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            alarmManager.setAndAllowWhileIdle(
+                AlarmManager.RTC_WAKEUP,
+                triggerAt,
+                pendingIntent
+            )
+        } else {
+            alarmManager.set(
+                AlarmManager.RTC_WAKEUP,
+                triggerAt,
+                pendingIntent
+            )
+        }
     }
 }

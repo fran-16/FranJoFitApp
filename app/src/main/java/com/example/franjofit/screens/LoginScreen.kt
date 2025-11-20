@@ -4,6 +4,7 @@ import android.app.Activity
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.Text
@@ -15,13 +16,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.franjofit.ui.components.GradientBackground
 import com.example.franjofit.ui.components.GoogleButton
 import com.example.franjofit.ui.components.OutlineInput
 import com.example.franjofit.ui.components.PrimaryButton
 import com.example.franjofit.ui.components.Spacing
+import com.example.franjofit.ui.theme.PrimarySoft
+import com.example.franjofit.ui.theme.TextColorMediumBlue
+import com.example.franjofit.ui.theme.Red
 import com.example.franjofit.ui.theme.White
-import com.example.franjofit.ui.theme.White80
 import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
@@ -97,17 +99,30 @@ fun LoginScreen(
         }
     }
 
-    GradientBackground {
+    // ⭐ Fondo blanco
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(White)
+    ) {
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(horizontal = Spacing.xl, vertical = Spacing.xl),
-            horizontalAlignment = Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center // ⭐ centrado
         ) {
-            Spacer(Modifier.height(16.dp))
-            Text("Iniciar sesión", color = White, fontSize = 34.sp, fontWeight = FontWeight.Bold)
+            // Título en celeste
+            Text(
+                text = "Iniciar sesión",
+                color = PrimarySoft,
+                fontSize = 34.sp,
+                fontWeight = FontWeight.Bold
+            )
+
             Spacer(Modifier.height(Spacing.xl))
 
+            // Los OutlineInput mantienen la misma firma
             OutlineInput(
                 value = email,
                 onValueChange = { email = it },
@@ -129,13 +144,14 @@ fun LoginScreen(
             if (errorMessage.isNotEmpty()) {
                 Text(
                     text = errorMessage,
-                    color = White80,
+                    color = Red,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
                 )
                 Spacer(Modifier.height(Spacing.md))
             }
 
+            // ⭐ El color real del botón se cambia en PrimaryButton (usa PrimarySoft allí)
             PrimaryButton(
                 text = "Iniciar sesión",
                 onClick = {
@@ -158,7 +174,7 @@ fun LoginScreen(
 
             Text(
                 text = "¿Olvidaste tu contraseña?",
-                color = White80,
+                color = TextColorMediumBlue,
                 textAlign = TextAlign.Center,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -167,6 +183,7 @@ fun LoginScreen(
 
             Spacer(Modifier.height(Spacing.xl))
 
+            // Fondo gris del botón de Google se configura en el propio GoogleButton
             GoogleButton(
                 text = "Continuar con Google",
                 onClick = {

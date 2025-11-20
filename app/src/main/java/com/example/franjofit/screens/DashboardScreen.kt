@@ -333,19 +333,38 @@ fun DashboardScreen(
             lastWeight = UserRepository.getLatestWeight()
         }
     }
+//CMABIO
+// CAMBIO: dentro de DashboardScreen
+suspend fun reloadMealsAndGoal() {
+    // 1. Traer comidas de hoy
+    meals = FoodRepository.getMealsForToday()
 
-    suspend fun reloadMealsAndGoal() {
-        meals = FoodRepository.getMealsForToday()
-        val consumed = meals.values.flatten().sumOf { (it["kcal"] as? Long ?: 0L).toInt() }
-        val goal = GoalsRepository.getDailyGoalOrDefault(uiState.value.baseGoal)
-        val base = goal.baseGoal
-        GoalsRepository.setTotals(base, consumed)
-        dailyGoal = DailyGoal(baseGoal = base, consumed = consumed)
-        smpDay = calculateDailySmpPredicted(meals)
-        lastWeight = UserRepository.getLatestWeight()
+    // 2. Calorías consumidas
+    val consumed = meals.values.flatten()
+        .sumOf { (it["kcal"] as? Long ?: 0L).toInt() }
 
-    }
+    // 3. Metas del día (kcal base)
+    val goal = GoalsRepository.getDailyGoalOrDefault(uiState.value.baseGoal)
+    val base = goal.baseGoal
 
+    // 4. Actualizar totales kcal
+    GoalsRepository.setTotals(base, consumed)
+
+    // 5. Leer SMP ACTUAL desde Firestore (lo que sea que haya escrito
+    //    el formulario o el recálculo al guardar comida)
+    val currentSmp = GoalsRepository.getTodaySmpCurrent(100)
+
+    // 6. Actualizar estado local
+    dailyGoal = goal.copy(
+        consumed = consumed,
+        remaining = (base - consumed).coerceAtLeast(0),
+        smpCurrent = currentSmp
+    )
+    smpDay = currentSmp
+}
+
+
+//TERMINA CAMBIO
     LaunchedEffect(Unit) { runCatching { reloadMealsAndGoal() } }
     LaunchedEffect(selectedIndex) { if (selectedIndex == 1) runCatching { reloadMealsAndGoal() } }
 
@@ -530,20 +549,42 @@ fun DashboardScreen(
                         exerciseMinutes = uiState.value.exerciseMinutes,
                         lastWeight = lastWeight,
                         onAddWeightClick = { showWeightDialog = true },
-
+//CAMBIO
                         onEditGoal = { newGoal ->
                             scope.launch {
                                 runCatching {
+                                    // 1️⃣ Actualiza la meta base en Firestore
                                     GoalsRepository.setBaseGoal(newGoal)
+
+                                    // 2️⃣ Recalcula calorías consumidas
                                     val consumed = meals.values.flatten()
                                         .sumOf { (it["kcal"] as? Long ?: 0L).toInt() }
+
+                                    // 3️⃣ Actualiza los totales del día
                                     GoalsRepository.setTotals(newGoal, consumed)
-                                    dailyGoal = DailyGoal(baseGoal = newGoal, consumed = consumed)
-                                    smpDay = calculateDailySmpPredicted(meals)
+
+                                    // 4️⃣ Mantenemos el SMP actual (no lo tocamos aquí)
+                                    val currentSmp = GoalsRepository.getTodaySmpCurrent()
+
+                                    // 5️⃣ Actualiza la UI del Dashboard
+                                    dailyGoal = dailyGoal.copy(
+                                        baseGoal = newGoal,
+                                        consumed = consumed,
+                                        remaining = (newGoal - consumed).coerceAtLeast(0),
+                                        smpCurrent = currentSmp
+                                    )
+
+                                    smpDay = currentSmp
+                                }.onFailure {
+                                    it.printStackTrace()
                                 }
                             }
+
+                            // Notificamos al padre si es necesario
                             onUpdateBaseGoal(newGoal)
                         },
+
+
                         stories = storyItems.take(5),
                         onStoryClick = { index ->
                             startStoryIndex = index

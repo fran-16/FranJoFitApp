@@ -8,8 +8,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import com.example.franjofit.ui.theme.White
-import com.example.franjofit.ui.theme.White60
 
 @Composable
 fun OutlineInput(
@@ -22,18 +20,30 @@ fun OutlineInput(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = { Text(placeholder, color = White60) },
+        placeholder = {
+            Text(
+                text = placeholder,
+                color = Color(0xFF6E6E6E) // ⭐ Gris oscuro para placeholder
+            )
+        },
         singleLine = true,
         modifier = modifier,
         visualTransformation = if (isPassword) PasswordVisualTransformation() else VisualTransformation.None,
         colors = TextFieldDefaults.colors(
+            // ⭐ Texto negro
+            focusedTextColor = Color.Black,
+            unfocusedTextColor = Color.Black,
+
+            // ⭐ Cursor negro
+            cursorColor = Color.Black,
+
+            // ⭐ Fondo del campo (transparente)
             focusedContainerColor = Color.Transparent,
             unfocusedContainerColor = Color.Transparent,
-            focusedIndicatorColor = White60,
-            unfocusedIndicatorColor = White60,
-            focusedTextColor = White,
-            unfocusedTextColor = White,
-            cursorColor = White
+
+            // ⭐ Líneas / bordes negros suaves
+            focusedIndicatorColor = Color.Black,
+            unfocusedIndicatorColor = Color.Gray,
         )
     )
 }
