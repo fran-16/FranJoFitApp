@@ -23,23 +23,124 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.franjofit.data.UserRepository
 import com.example.franjofit.data.WeightEntry
-import kotlinx.coroutines.launch
+import com.example.franjofit.data.FoodRepository
+import com.github.tehras.charts.bar.renderer.label.SimpleValueDrawer
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldPath
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.*
 
+// Tehras Charts
+// Tehras Charts
+// Tehras Charts
+
+import com.github.tehras.charts.line.LineChart
+import com.github.tehras.charts.line.LineChartData
+import com.github.tehras.charts.line.renderer.line.SolidLineDrawer
+import com.github.tehras.charts.line.renderer.point.FilledCircularPointDrawer
+import com.github.tehras.charts.line.renderer.xaxis.SimpleXAxisDrawer
+import com.github.tehras.charts.line.renderer.yaxis.SimpleYAxisDrawer
+import com.github.tehras.charts.piechart.animation.simpleChartAnimation
+
 val CardBorderSoft = Color(0xFFD3E4FF)
 val TextDark = Color(0xFF0D1B2A)
+
+// SMP de un día (para el gráfico mensual)
+data class SmpDay(
+    val day: Int,     // día del mes (1..31)
+    val score: Float  // SMP (0..100)
+)
 
 @Composable
 fun ProgressScreen() {
 
     var weights by remember { mutableStateOf<List<WeightEntry>>(emptyList()) }
-    val scope = rememberCoroutineScope()
     val scroll = rememberScrollState()
 
+    // Macros del día
+    var dailyCarbs by remember { mutableStateOf(0f) }
+    var dailyProtein by remember { mutableStateOf(0f) }
+    var dailyFiber by remember { mutableStateOf(0f) }
+
+    // SMP historial por mes
+    var smpDays by remember { mutableStateOf<List<SmpDay>>(emptyList()) }
+
+    // Mes actual
+    val now = remember { Calendar.getInstance() }
+    var currentYear by remember { mutableStateOf(now.get(Calendar.YEAR)) }
+    var currentMonth by remember { mutableStateOf(now.get(Calendar.MONTH)) } // 0..11
+
+    // Peso + macros (no dependen del mes)
     LaunchedEffect(Unit) {
-        scope.launch {
-            weights = UserRepository.getWeightHistory()
+        weights = UserRepository.getWeightHistory()
+
+        val meals = FoodRepository.getMealsForToday()
+        val allItems = meals.values.flatten()
+
+        fun sumKey(key: String): Float =
+            allItems.sumOf { item ->
+                when (val v = item[key]) {
+                    is Number -> v.toDouble()
+                    else -> 0.0
+                }
+            }.toFloat()
+
+        dailyCarbs = sumKey("carbs_g")
+        dailyProtein = sumKey("protein_g")
+        dailyFiber = sumKey("fiber_g")
+    }
+
+    // Cada vez que cambia el mes/año, leemos los smpCurrent de ese mes
+    LaunchedEffect(currentYear, currentMonth) {
+        val auth = FirebaseAuth.getInstance()
+        val uid = auth.currentUser?.uid
+        if (uid == null) {
+            smpDays = emptyList()
+            return@LaunchedEffect
+        }
+
+        val db = FirebaseFirestore.getInstance()
+        val col = db.collection("users")
+            .document(uid)
+            .collection("goals")
+
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.YEAR, currentYear)
+            set(Calendar.MONTH, currentMonth)
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val startId = sdf.format(cal.time)
+
+        val lastDay = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        cal.set(Calendar.DAY_OF_MONTH, lastDay)
+        val endId = sdf.format(cal.time)
+
+        try {
+            val snaps = col
+                .orderBy(FieldPath.documentId())
+                .startAt(startId)
+                .endAt(endId)
+                .get()
+                .await()
+
+            smpDays = snaps.documents.mapNotNull { doc ->
+                val id = doc.id // "yyyy-MM-dd"
+                val parts = id.split("-")
+                val day = parts.getOrNull(2)?.toIntOrNull() ?: return@mapNotNull null
+                val smp = (doc.getLong("smpCurrent") ?: 100L).toFloat()
+                SmpDay(day = day, score = smp)
+            }.sortedBy { it.day }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            smpDays = emptyList()
         }
     }
 
@@ -73,17 +174,41 @@ fun ProgressScreen() {
             WeightChartCard(weights)
             Spacer(Modifier.height(20.dp))
 
-            // Calorías últimos 7 días (datos de ejemplo por ahora)
+            // Calorías últimos 7 días (de momento mock)
             DailyCaloriesCard(
                 calories = listOf(1800f, 1950f, 2100f, 1600f, 2000f, 1900f, 2200f)
             )
             Spacer(Modifier.height(20.dp))
 
-            // Macros
+            // Macros del día
             MacroChartCard(
-                carbs = 180f,
-                protein = 70f,
-                fiber = 25f
+                carbs = dailyCarbs,
+                protein = dailyProtein,
+                fiber = dailyFiber
+            )
+            Spacer(Modifier.height(20.dp))
+
+            // 🔹 Nuevo: gráfico mensual del SMP
+            SmpMonthlyCard(
+                smpDays = smpDays,
+                year = currentYear,
+                month = currentMonth,
+                onPrevMonth = {
+                    if (currentMonth == 0) {
+                        currentMonth = 11
+                        currentYear -= 1
+                    } else {
+                        currentMonth -= 1
+                    }
+                },
+                onNextMonth = {
+                    if (currentMonth == 11) {
+                        currentMonth = 0
+                        currentYear += 1
+                    } else {
+                        currentMonth += 1
+                    }
+                }
             )
 
             Spacer(Modifier.height(40.dp))
@@ -281,10 +406,7 @@ fun DailyCaloriesCard(calories: List<Float>) {
 @Composable
 fun MacroChartCard(carbs: Float, protein: Float, fiber: Float) {
 
-    val total = (carbs + protein + fiber).takeIf { it > 0 } ?: 1f
-    val carbRatio = carbs / total
-    val protRatio = protein / total
-    val fibRatio = fiber / total
+    val sum = carbs + protein + fiber
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -296,39 +418,52 @@ fun MacroChartCard(carbs: Float, protein: Float, fiber: Float) {
             Text("Macronutrientes del día", color = TextDark, fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
 
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(26.dp)
-                    .background(Color(0xFFE9F0FF), MaterialTheme.shapes.small)
-            ) {
-                Row(Modifier.fillMaxSize()) {
-                    Box(
-                        Modifier
-                            .weight(carbRatio)
-                            .fillMaxHeight()
-                            .background(Color(0xFF4FC3F7))
-                    )
-                    Box(
-                        Modifier
-                            .weight(protRatio)
-                            .fillMaxHeight()
-                            .background(Color(0xFF81C784))
-                    )
-                    Box(
-                        Modifier
-                            .weight(fibRatio)
-                            .fillMaxHeight()
-                            .background(Color(0xFFFFF176))
-                    )
+            if (sum <= 0f) {
+                Text(
+                    "Aún no has registrado comidas hoy.",
+                    color = TextDark.copy(0.7f),
+                    fontSize = 13.sp
+                )
+            } else {
+                val total = sum
+                val carbRatio = carbs / total
+                val protRatio = protein / total
+                val fibRatio = fiber / total
+
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height(26.dp)
+                        .background(Color(0xFFE9F0FF), MaterialTheme.shapes.small)
+                ) {
+                    Row(Modifier.fillMaxSize()) {
+                        Box(
+                            Modifier
+                                .weight(carbRatio)
+                                .fillMaxHeight()
+                                .background(Color(0xFF4FC3F7))
+                        )
+                        Box(
+                            Modifier
+                                .weight(protRatio)
+                                .fillMaxHeight()
+                                .background(Color(0xFF81C784))
+                        )
+                        Box(
+                            Modifier
+                                .weight(fibRatio)
+                                .fillMaxHeight()
+                                .background(Color(0xFFFFF176))
+                        )
+                    }
                 }
+
+                Spacer(Modifier.height(12.dp))
+
+                MacroLegend("Carbohidratos", carbs, Color(0xFF4FC3F7))
+                MacroLegend("Proteína", protein, Color(0xFF81C784))
+                MacroLegend("Fibra", fiber, Color(0xFFFFF176))
             }
-
-            Spacer(Modifier.height(12.dp))
-
-            MacroLegend("Carbohidratos", carbs, Color(0xFF4FC3F7))
-            MacroLegend("Proteína", protein, Color(0xFF81C784))
-            MacroLegend("Fibra", fiber, Color(0xFFFFF176))
         }
     }
 }
@@ -352,5 +487,104 @@ fun MacroLegend(label: String, grams: Float, color: Color) {
             Text(label, color = TextDark.copy(0.9f), fontSize = 13.sp)
         }
         Text("${grams.toInt()} g", color = TextDark, fontSize = 13.sp)
+    }
+}
+@Composable
+fun SmpMonthlyCard(
+    smpDays: List<SmpDay>,
+    year: Int,
+    month: Int, // 0..11
+    onPrevMonth: () -> Unit,
+    onNextMonth: () -> Unit
+) {
+    val monthName = remember(year, month) {
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.YEAR, year)
+            set(Calendar.MONTH, month)
+        }
+        SimpleDateFormat("MMMM yyyy", Locale("es", "ES")).format(cal.time)
+            .replaceFirstChar { it.uppercase() }
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.6f)),
+        shape = MaterialTheme.shapes.large
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "SMP por día",
+                    color = TextDark,
+                    fontWeight = FontWeight.SemiBold
+                )
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onPrevMonth) {
+                        Text("<", color = TextDark)
+                    }
+                    Text(
+                        text = monthName,
+                        color = TextDark,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    IconButton(onClick = onNextMonth) {
+                        Text(">", color = TextDark)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            if (smpDays.isEmpty()) {
+                Text(
+                    "Sin registros de SMP para este mes.",
+                    color = TextDark.copy(0.7f),
+                    fontSize = 13.sp
+                )
+            } else {
+                val sorted = smpDays.sortedBy { it.day }
+
+                // 👉 AQUÍ VA EL lineDrawer (obligatorio en 0.2.2-alpha)
+                val lineData = listOf(
+                    LineChartData(
+                        points = sorted.map { day ->
+                            LineChartData.Point(
+                                day.score.toFloat(),      // value
+                                day.day.toString()        // label para el eje X
+                            )
+                        },
+                        lineDrawer = SolidLineDrawer()
+                    )
+                )
+
+                LineChart(
+                    linesChartData = lineData,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    animation = simpleChartAnimation(),
+                    pointDrawer = FilledCircularPointDrawer(),
+                    xAxisDrawer = SimpleXAxisDrawer(),
+                    yAxisDrawer = SimpleYAxisDrawer(),
+                    horizontalOffset = 5f
+                )
+
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Valores entre 0 y 100 (SMP del día).",
+                    color = TextDark.copy(0.6f),
+                    fontSize = 11.sp
+                )
+            }
+        }
     }
 }

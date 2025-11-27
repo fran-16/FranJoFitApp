@@ -130,6 +130,8 @@ object FoodRepository {
         ).await()
     }
 
+
+    //Se obtienen las comidas del día
     suspend fun getMealsForToday(): Map<String, List<Map<String, Any>>> {
         val uid = auth.currentUser?.uid ?: return emptyMap()
         val today = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())

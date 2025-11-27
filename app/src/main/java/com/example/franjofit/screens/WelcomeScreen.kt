@@ -28,7 +28,7 @@ fun WelcomeScreen(
     Box(Modifier.fillMaxSize()) {
 
         Image(
-            painter = painterResource(R.drawable.hero_welcome),
+            painter = painterResource(R.drawable.fondowelcome),
             contentDescription = "Welcome Background Image",
             modifier = Modifier
                 .fillMaxSize()

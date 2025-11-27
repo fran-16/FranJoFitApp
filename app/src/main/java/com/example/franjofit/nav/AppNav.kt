@@ -127,7 +127,17 @@ fun AppNav(
         // =====================================
         // DASHBOARD
         // =====================================
-        composable(Routes.Dashboard) {
+// =====================================
+// DASHBOARD
+// =====================================
+        composable(Routes.Dashboard) { entry ->
+
+            // 👇 LEEMOS EL FLAG DE QUE LAS COMIDAS CAMBIARON
+            val handle = entry.savedStateHandle
+            val mealsChanged by handle
+                .getStateFlow("meals_changed", false)
+                .collectAsState()
+
             DashboardScreen(
                 onAddWeight = {},
                 onOpenProfile = { nav.navigate(Routes.Profile) },
@@ -137,13 +147,20 @@ fun AppNav(
                 onUpdateBaseGoal = { /* si luego quieres algo extra */ },
                 onOpenReminders = {
                     // por ahora vacío
+                },
+                mealsChanged = mealsChanged,                               // 👈 NUEVO
+                onMealsChangeHandled = {
+                    handle["meals_changed"] = false   // reseteamos el flag
+                },
+                onOpenSmpBot = {
+                    nav.navigate(Routes.SmpBot)   // 👈 AQUÍ NAVEGAS AL BOT
                 }
             )
         }
 
-        // =====================================
-        // ADD MEAL (con HIGHLIGHT desde escaneo)
-        // =====================================
+// =====================================
+// ADD MEAL (con HIGHLIGHT desde escaneo)
+// =====================================
         composable(
             route = Routes.AddMeal,
             arguments = listOf(navArgument("meal") { type = NavType.StringType })
@@ -151,14 +168,12 @@ fun AppNav(
 
             val mealKey = entry.arguments?.getString("meal") ?: "desayuno"
 
-            // Recuperar datos del scan (si existen)
             val handle = entry.savedStateHandle
 
             val scannedName by handle.getStateFlow("scan_name", null as String?).collectAsState()
             val scannedKcal by handle.getStateFlow("scan_kcal", null as Int?).collectAsState()
             val scannedPortion by handle.getStateFlow("scan_portion", null as String?).collectAsState()
 
-            // Limpiar para evitar re-trigger
             LaunchedEffect(scannedName, scannedKcal, scannedPortion) {
                 if (scannedName != null || scannedKcal != null || scannedPortion != null) {
                     handle["scan_name"] = null
@@ -169,13 +184,23 @@ fun AppNav(
 
             AddMealScreen(
                 mealKey = mealKey,
-                onBack = { nav.popBackStack() },
+                onBack = { nav.popBackStack() },               // para el botón de atrás de la toolbar
                 onScan = { nav.navigate("scan_food/$mealKey") },
                 scannedName = scannedName,
                 scannedKcal = scannedKcal,
-                scannedPortion = scannedPortion
+                scannedPortion = scannedPortion,
+                onMealsSaved = {
+                    // 👇 AVISAMOS AL DASHBOARD QUE CAMBIARON LAS COMIDAS
+                    nav.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("meals_changed", true)
+
+                    // 👈 y regresamos al Dashboard
+                    nav.popBackStack()
+                }
             )
         }
+
 
         // =====================================
         // SCAN FOOD
@@ -229,6 +254,17 @@ fun AppNav(
                 )
             }
         }
+
+// =====================================
+// SMP BOT
+// =====================================
+        composable(Routes.SmpBot) {
+            SmpBotScreen(
+                onBack = { nav.popBackStack() }
+            )
+        }
+
+
 
 
     }

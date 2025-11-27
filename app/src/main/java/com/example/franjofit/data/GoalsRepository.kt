@@ -82,11 +82,6 @@ object GoalsRepository {
     // SMP ACTUAL
     // ==========================
 
-    /**
-     * Devuelve el SMP “vigente” para hoy:
-     * - smpCurrent si existe
-     * - si no, [defaultScore] (normalmente 100).
-     */
     suspend fun getTodaySmpCurrentOrDefault(defaultScore: Int = 100): Int {
         val snap = goalDoc().get().await()
         if (!snap.exists()) return defaultScore
@@ -98,17 +93,14 @@ object GoalsRepository {
         return getTodaySmpCurrentOrDefault(defaultScore)
     }
 
-    /**
-     * Setea el SMP actual de hoy.
-     */
     suspend fun updateTodaySmpCurrent(newScore: Int) {
         val update = mapOf("smpCurrent" to newScore)
         goalDoc().set(update, SetOptions.merge()).await()
     }
 
     // ==========================
-    // SMP calculado desde comidas
-    // (para usar al GUARDAR una comida)
+    // SMP desde COMIDAS
+    // (misma lógica que tenías en el Dashboard)
     // ==========================
 
     private const val DEFAULT_IG = 55.0
@@ -131,7 +123,8 @@ object GoalsRepository {
     )
 
     private data class MealSmp(
-        val score: Int
+        val score: Int,
+        val reasons: List<String> = emptyList()
     )
 
     private fun Map<String, Any>.num(key: String): Double {
@@ -173,6 +166,7 @@ object GoalsRepository {
     }
 
     private fun smpForMeal(metrics: MealMetrics): MealSmp {
+        val reasons = mutableListOf<String>()
 
         val penGL = metrics.glTotal * GL_COEF
         val penIG = metrics.igPlate * IG_COEF
@@ -180,14 +174,18 @@ object GoalsRepository {
         val fiberBonus = (metrics.fiber.coerceAtMost(10.0) / 10.0) * MAX_FIBER_BONUS
         val protBonus  = (metrics.protein.coerceAtMost(25.0) / 25.0) * MAX_PROT_BONUS
 
+        if (fiberBonus >= 1.0) reasons += "+${fiberBonus.toInt()} fibra"
+        if (protBonus  >= 1.0) reasons += "+${protBonus.toInt()} proteína"
+
         val kcalPen = if (metrics.kcal > KCAL_SOFT_CAP) {
             val steps = ((metrics.kcal - KCAL_SOFT_CAP) / KCAL_PEN_STEP)
             (steps * KCAL_PEN_PER_STEP).coerceAtMost(KCAL_PEN_MAX)
         } else 0.0
+        if (kcalPen >= 1.0) reasons += "−${kcalPen.toInt()} kcal altas"
 
         var score = 100.0 - penGL - penIG + fiberBonus + protBonus - kcalPen
         score = score.coerceIn(0.0, 100.0)
-        return MealSmp(score.toInt())
+        return MealSmp(score.toInt(), reasons)
     }
 
     private fun calculateDailySmpPredicted(
@@ -207,11 +205,11 @@ object GoalsRepository {
     }
 
     /**
-     * La idea es llamar a esto DESPUÉS de guardar una comida:
-     * - Lee las comidas de hoy
-     * - Calcula un SMP predicho del día
-     * - Lo guarda en `smpCurrent`
-     * - Devuelve el valor por si lo quieres mostrar en UI.
+     * Llamar DESPUÉS de guardar una comida:
+     * - Lee comidas de hoy
+     * - Calcula SMP predicho con esta lógica
+     * - Lo guarda en smpCurrent
+     * - Devuelve el score final
      */
     suspend fun recalcTodaySmpFromMeals(): Int {
         val meals = FoodRepository.getMealsForToday()

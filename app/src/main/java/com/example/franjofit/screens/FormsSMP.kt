@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -14,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.example.franjofit.data.GoalsRepository
+import kotlinx.coroutines.launch
 
 data class SymptomOption(
     val id: String,
@@ -21,6 +22,76 @@ data class SymptomOption(
     val description: String,
     val scoreDelta: Int   // cuánto suma (+) o resta (−) al SMP
 )
+
+/**
+ * Entry point del formulario SMP:
+ * - Lee el SMP actual de Firestore (smpCurrent o 100 por defecto)
+ * - Renderiza FormsSMPScreen con ese baseScore
+ * - Al guardar, actualiza smpCurrent en Firestore.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun FormsSmpScreenEntry(
+    onBack: () -> Unit = {}
+) {
+    val scope = rememberCoroutineScope()
+    var baseScore by remember { mutableStateOf(100) }
+    var loading by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        try {
+            baseScore = GoalsRepository.getTodaySmpCurrentOrDefault(100)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            baseScore = 100
+        } finally {
+            loading = false
+        }
+    }
+
+    if (loading) {
+        //Pantalla de carga sencilla mientras se obtiene el SMP base
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { Text("Síntomas postprandiales") },
+                    navigationIcon = {
+                        IconButton(onClick = onBack) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "Volver"
+                            )
+                        }
+                    }
+                )
+            }
+        ) { padding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
+    } else {
+        FormsSMPScreen(
+            baseScore = baseScore,
+            onSubmit = { newScore ->
+                scope.launch {
+                    try {
+                        //Se guarda el nuevo smp luego de los sintomas
+                        GoalsRepository.updateTodaySmpCurrent(newScore)
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            },
+            onBack = onBack
+        )
+    }
+}
 
 @SuppressLint("UnrememberedMutableState")
 @OptIn(ExperimentalMaterial3Api::class)
@@ -30,7 +101,7 @@ fun FormsSMPScreen(
     onSubmit: (newScore: Int) -> Unit,
     onBack: () -> Unit = {}
 ) {
-    // Lista de síntomas con deltas
+    //Lista de síntomas con deltas
     val symptoms = listOf(
         SymptomOption(
             id = "energia_buena",
@@ -133,7 +204,6 @@ fun FormsSMPScreen(
                 .padding(padding)
         ) {
 
-            // CONTENIDO SCROLLEABLE
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -206,7 +276,6 @@ fun FormsSMPScreen(
                 }
             }
 
-            // BOTÓN FIJO ABAJO
             Button(
                 onClick = {
                     onSubmit(estimatedScore)

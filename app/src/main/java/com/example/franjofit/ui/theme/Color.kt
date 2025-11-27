@@ -16,16 +16,18 @@ val White30    = White.copy(alpha = 0.30f)
 val OrangeStart = Color(0xFFFF8A3D)
 val OrangeEnd   = Color(0xFFFF3D3D)
 
-// ⭐ NUEVOS COLORES PARA TEMA CLARO
-// Fondo casi blanco con toque celeste
+
 val ScreenBackground = Color(0xFFF8FAFF)
 
 val PrimaryBlue      = Color(0xFF26C6DA)   // celeste lindo
 val BorderBlue       = Color(0xFF81D4FA)   // más clarito para bordes
-// Fondo suave para tarjetas (off-white azulado)
-val CardBackground = Color(0xFFF3F7FF)
 
-// Borde celeste suave para tarjetas
+//Colores para las tarjetas:
+//Este es para el fondo
+val CardBackground = Color(0xFFF3F7FF)
+//Este es para los bordes
+
+
 val CardBorderSoft = Color(0xFFD3E4FF)
 val PrimarySoft = Color(0xFF43C7E8)
 val StoryCardBlue = Color(0xFFC9F5FF)

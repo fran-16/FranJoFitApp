@@ -65,6 +65,10 @@ import com.example.franjofit.ui.theme.LightCardBlue
 import com.example.franjofit.ui.theme.ScreenBackground
 import com.example.franjofit.ui.theme.StoryCardBlue
 import com.example.franjofit.ui.theme.TextColorDarkBlue
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.IntOffset
+
 //Semáforo
 enum class SmpColor { GREEN, AMBER, RED }
 
@@ -75,6 +79,7 @@ fun smpColorFrom(score: Int): SmpColor = when {
 }
 
 
+//Dibuja el semáforo
 @Composable
 fun TrafficLight(
     score: Int,
@@ -87,6 +92,7 @@ fun TrafficLight(
     val off     = Color(0xFF2B2B2B)
     val housing = Color(0xFF1C1C1C)
 
+    //Dibujamos un foco del semáforo
     @Composable
     fun Bulb(on: Boolean, onColor: Color, contentDesc: String) {
         val glowAlpha by animateFloatAsState(targetValue = if (on) 0.35f else 0f, label = "glow")
@@ -116,7 +122,7 @@ fun TrafficLight(
                 .border(2.dp, Color.Black.copy(alpha = 0.6f), CircleShape)
         )
     }
-
+    //Su contenodor principal de todo el semaforo
     Box(
         modifier = modifier
             .width(96.dp)
@@ -137,11 +143,9 @@ fun TrafficLight(
     }
 }
 
+//La tarjeta resumen de smp
 @Composable
-fun SmpSummaryCard(
-    score: Int,
-    pendingCount: Int
-) {
+fun SmpSummaryCard(score: Int, pendingCount: Int) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -156,7 +160,6 @@ fun SmpSummaryCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
 
-
             Box(
                 modifier = Modifier
                     .border(
@@ -168,12 +171,12 @@ fun SmpSummaryCard(
             ) {
                 TrafficLight(score = score)
             }
-
+            //Dejamos un espacio vacio entre el semáforo y su texto
             Spacer(Modifier.width(16.dp))
 
             Column(Modifier.weight(1f)) {
 
-
+            //Este es el texto de resumen del smp
                 Text(
                     text = "SMP del día: $score",
                     color = MaterialTheme.colorScheme.onSurface,
@@ -222,8 +225,12 @@ fun SmpSummaryCard(
 
 enum class MealType { DESAYUNO, ALMUERZO, CENA, EXTRAS }
 data class MealItem(val name: String, val kcal: Int)
+
+
+//Diseño del bot
 @Composable
 fun SmpAssistantBot(modifier: Modifier = Modifier, onClick: () -> Unit) {
+    //Hacemos el efecto del latido del bot
     val pulse by rememberInfiniteTransition().animateFloat(
         initialValue = 0.9f,
         targetValue = 1.1f,
@@ -241,7 +248,7 @@ fun SmpAssistantBot(modifier: Modifier = Modifier, onClick: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
 
-
+    //Cara el bot
         Box(
             modifier = Modifier
                 .size(70.dp)
@@ -257,7 +264,6 @@ fun SmpAssistantBot(modifier: Modifier = Modifier, onClick: () -> Unit) {
             contentAlignment = Alignment.Center
         ) {
 
-
             Canvas(modifier = Modifier.fillMaxSize()) {
 
                 drawRoundRect(
@@ -266,7 +272,7 @@ fun SmpAssistantBot(modifier: Modifier = Modifier, onClick: () -> Unit) {
                     cornerRadius = CornerRadius(40f, 40f),
                     topLeft = Offset(size.width * 0.05f, size.height * 0.12f)
                 )
-
+                //Son los dos ojos del bot
                 drawCircle(
                     color = Color.Cyan,
                     radius = size.width * 0.12f,
@@ -277,7 +283,7 @@ fun SmpAssistantBot(modifier: Modifier = Modifier, onClick: () -> Unit) {
                     radius = size.width * 0.12f,
                     center = Offset(size.width * 0.65f, size.height * 0.48f)
                 )
-
+                //Brillo de la cabeza
                 drawCircle(
                     color = Color.White.copy(alpha = 0.22f),
                     radius = size.width * 0.35f,
@@ -285,7 +291,6 @@ fun SmpAssistantBot(modifier: Modifier = Modifier, onClick: () -> Unit) {
                 )
             }
         }
-
         Spacer(Modifier.height(6.dp))
 
         Text(
@@ -304,7 +309,10 @@ fun DashboardScreen(
     onOpenProfile: () -> Unit = {},
     onOpenAddMeal: (String) -> Unit = {},
     onUpdateBaseGoal: (Int) -> Unit = {},
-    onOpenReminders: () -> Unit = {}
+    onOpenReminders: () -> Unit = {},
+    mealsChanged: Boolean = false,
+    onMealsChangeHandled: () -> Unit = {},
+    onOpenSmpBot: () -> Unit = {}
 ) {
     val uiState = viewModel.ui.collectAsState()
     var selectedIndex by remember { mutableStateOf(0) }
@@ -313,19 +321,19 @@ fun DashboardScreen(
     var dailyGoal by remember { mutableStateOf(DailyGoal(baseGoal = uiState.value.baseGoal)) }
     val scope = rememberCoroutineScope()
 
-    // SMP del día (mock por ahora)
+    // SMP del día
     var smpDay by remember { mutableStateOf(78) }
 
-    // 🔥 Peso
+    //El último peso del usuario
     var lastWeight by remember { mutableStateOf<Float?>(null) }
+    //Se usa para mostrar la ventana del ingresar peso
     var showWeightDialog by remember { mutableStateOf(false) }
 
-
-
-
+    //Foto de perfil del usuario
     var fotoMiniUrl by remember {
         mutableStateOf<String?>(FirebaseAuth.getInstance().currentUser?.photoUrl?.toString())
     }
+    //Corutina
     LaunchedEffect(Unit) {
         runCatching {
             val perfil = UserRepository.getUserProfileOrNull()
@@ -333,41 +341,55 @@ fun DashboardScreen(
             lastWeight = UserRepository.getLatestWeight()
         }
     }
-//CMABIO
-// CAMBIO: dentro de DashboardScreen
-suspend fun reloadMealsAndGoal() {
-    // 1. Traer comidas de hoy
-    meals = FoodRepository.getMealsForToday()
+    //CMABIO
 
-    // 2. Calorías consumidas
-    val consumed = meals.values.flatten()
-        .sumOf { (it["kcal"] as? Long ?: 0L).toInt() }
+    suspend fun reloadMealsAndGoal() {
+        // 1. Comidas de hoy
+        meals = FoodRepository.getMealsForToday()
 
-    // 3. Metas del día (kcal base)
-    val goal = GoalsRepository.getDailyGoalOrDefault(uiState.value.baseGoal)
-    val base = goal.baseGoal
+        // 2. Calorías consumidas
+        val consumed = meals.values.flatten()
+            .sumOf { (it["kcal"] as? Number ?: 0L).toInt() }
 
-    // 4. Actualizar totales kcal
-    GoalsRepository.setTotals(base, consumed)
+        // 3. Obtener meta del día (ya trae smpCurrent si existe)
+        val goalFromRepo = GoalsRepository.getDailyGoalOrDefault(uiState.value.baseGoal)
+        val base = goalFromRepo.baseGoal
 
-    // 5. Leer SMP ACTUAL desde Firestore (lo que sea que haya escrito
-    //    el formulario o el recálculo al guardar comida)
-    val currentSmp = GoalsRepository.getTodaySmpCurrent(100)
+        // 4. Actualizar totales kcal en Firestore (pero NO tocar smpCurrent aquí)
+        GoalsRepository.setTotals(base, consumed)
 
-    // 6. Actualizar estado local
-    dailyGoal = goal.copy(
-        consumed = consumed,
-        remaining = (base - consumed).coerceAtLeast(0),
-        smpCurrent = currentSmp
-    )
-    smpDay = currentSmp
-}
+        // 5. Actualizar estado local
+        dailyGoal = goalFromRepo.copy(
+            consumed = consumed,
+            remaining = (base - consumed).coerceAtLeast(0)
+            // smpCurrent lo dejamos igual, viene del repo
+        )
+
+        // 6. Lo que va a pintar el semáforo
+        smpDay = goalFromRepo.smpCurrent ?: 100
+    }
+
+
 
 
 //TERMINA CAMBIO
-    LaunchedEffect(Unit) { runCatching { reloadMealsAndGoal() } }
-    LaunchedEffect(selectedIndex) { if (selectedIndex == 1) runCatching { reloadMealsAndGoal() } }
 
+
+    //Esto se carga al entrar por primera vez a la app
+    LaunchedEffect(Unit) { runCatching { reloadMealsAndGoal() } }
+
+    //Se recarga al ir a la pestaña de seguimiento
+    LaunchedEffect(selectedIndex) {
+        if (selectedIndex == 1) runCatching { reloadMealsAndGoal() }
+    }
+
+    //Se recarga cuando agregamos comida
+    LaunchedEffect(mealsChanged) {
+        if (mealsChanged) {
+            runCatching { reloadMealsAndGoal() }
+            onMealsChangeHandled() // resetea el flag en el NavHost
+        }
+    }
     val pendingCount = 0
 
 
@@ -411,7 +433,7 @@ suspend fun reloadMealsAndGoal() {
             "Texto de ejemplo historia 7..."
         )
     )
-
+    var botOffset by remember { mutableStateOf(IntOffset(0, 0)) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -526,7 +548,7 @@ suspend fun reloadMealsAndGoal() {
             }
         }
     )
- { padding ->
+    { padding ->
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -553,20 +575,20 @@ suspend fun reloadMealsAndGoal() {
                         onEditGoal = { newGoal ->
                             scope.launch {
                                 runCatching {
-                                    // 1️⃣ Actualiza la meta base en Firestore
+                                    //Actualiza la meta base en Firestore
                                     GoalsRepository.setBaseGoal(newGoal)
 
-                                    // 2️⃣ Recalcula calorías consumidas
+                                    //Recalcula calorías consumidas
                                     val consumed = meals.values.flatten()
                                         .sumOf { (it["kcal"] as? Long ?: 0L).toInt() }
 
-                                    // 3️⃣ Actualiza los totales del día
+                                    //Actualiza los totales del día
                                     GoalsRepository.setTotals(newGoal, consumed)
 
-                                    // 4️⃣ Mantenemos el SMP actual (no lo tocamos aquí)
+                                    //Mantenemos el SMP actual (no lo tocamos aquí)
                                     val currentSmp = GoalsRepository.getTodaySmpCurrent()
 
-                                    // 5️⃣ Actualiza la UI del Dashboard
+                                    //Actualiza la UI del Dashboard
                                     dailyGoal = dailyGoal.copy(
                                         baseGoal = newGoal,
                                         consumed = consumed,
@@ -580,7 +602,7 @@ suspend fun reloadMealsAndGoal() {
                                 }
                             }
 
-                            // Notificamos al padre si es necesario
+
                             onUpdateBaseGoal(newGoal)
                         },
 
@@ -612,11 +634,22 @@ suspend fun reloadMealsAndGoal() {
             )
             SmpAssistantBot(
                 modifier = Modifier
+                    //Movmiento del bot
                     .align(Alignment.BottomEnd)
+                    .offset { botOffset }
                     .padding(end = 20.dp, bottom = 90.dp)
                     .zIndex(3f)
-            ) {
-                selectedIndex = 99
+                    .pointerInput(Unit) {
+                        detectDragGestures { change, dragAmount ->
+                            change.consume()
+                            botOffset = IntOffset(
+                                botOffset.x + dragAmount.x.toInt(),
+                                botOffset.y + dragAmount.y.toInt()
+                            )
+                        }
+                    }
+            ){
+                onOpenSmpBot()
             }
         }
     }
@@ -705,8 +738,7 @@ private fun computeMealMetrics(items: List<Map<String, Any>>): MealMetrics {
         val ig = m.num("ig").takeIf { it > 0 } ?: DEFAULT_IG
         val gl = m.num("gl")
 
-        // 🔥 FIX: estas son las llaves correctas
-        val c  = m.num("carbs_g")
+                val c  = m.num("carbs_g")
         val p  = m.num("protein_g")
         val f  = m.num("fiber_g")
 
@@ -812,7 +844,7 @@ private fun PrincipalContent(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // PASOS
+            //PASOS
             Card(
                 modifier = Modifier
                     .weight(1f)
@@ -838,7 +870,7 @@ private fun PrincipalContent(
                 }
             }
 
-            // EJERCICIO
+            //EJERCICIO
             Card(
                 modifier = Modifier
                     .weight(1f)
@@ -924,7 +956,7 @@ private fun PrincipalContent(
                 .padding(top = 12.dp)
                 .border(1.dp, CardBorderSoft, MaterialTheme.shapes.large),
             colors = CardDefaults.cardColors(
-                containerColor = CardBackground          // 👈 mismo color que Peso / SMP
+                containerColor = CardBackground
             ),
             shape = MaterialTheme.shapes.large
         ) {
@@ -932,7 +964,7 @@ private fun PrincipalContent(
 
                 Text(
                     text = "Historias y salud",
-                    color = MaterialTheme.colorScheme.onSurface,  // 👈 texto oscuro, no blanco
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontSize = 17.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -948,7 +980,7 @@ private fun PrincipalContent(
         }
 
 
-        Spacer(Modifier.height(40.dp)) // un poco de espacio al final
+        Spacer(Modifier.height(40.dp))
     }
 }
 
@@ -1038,7 +1070,7 @@ private fun DayHeaderCard(totalKcal: Int, remaining: Int) {
                     )
                     Text(
                         "${remaining.coerceAtLeast(0)} kcal",
-                        color = MaterialTheme.colorScheme.primary,         // celeste 💙
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 20.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -1090,7 +1122,7 @@ private fun MealSectionCard(
                     onClick = onAdd,
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary   // 💙 celeste
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
                 ) {
                     Text(
@@ -1181,9 +1213,9 @@ private fun CalorieGoalCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, CardBorderSoft, MaterialTheme.shapes.large), // borde suave celeste
+            .border(1.dp, CardBorderSoft, MaterialTheme.shapes.large),
         colors = CardDefaults.cardColors(
-            containerColor = CardBackground  // fondo off-white azulado
+            containerColor = CardBackground
         ),
         shape = MaterialTheme.shapes.large
     ) {
@@ -1200,7 +1232,7 @@ private fun CalorieGoalCard(
                 CalorieLavaRing(
                     progress = progress,
                     bgAlpha = 0.20f,
-                    color = MaterialTheme.colorScheme.primary     // CELESTE 💙
+                    color = MaterialTheme.colorScheme.primary
                 )
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1327,7 +1359,6 @@ private fun CalorieLavaRing(
             style = Stroke(width = stroke, cap = StrokeCap.Round)
         )
 
-        // ARO PRINCIPAL CELESTE 💙
         val brush = Brush.sweepGradient(
             colors = listOf(
                 color.copy(alpha = 0.20f),

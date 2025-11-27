@@ -19,11 +19,12 @@ object UserRepository {
     private val db = FirebaseFirestore.getInstance()
     private val storage = FirebaseStorage.getInstance()
 
-    // ============================================================
-    //  📌 OBTENER PERFIL DE USUARIO
-    // ============================================================
+
+    //Esta es la función para obtener el perfil del usuario
     suspend fun getUserProfileOrNull(): UserProfile? {
+        //Se obtiene el uid del usuario logueado
         val uid = auth.currentUser?.uid ?: return null
+        //Pedimos el documento users/uid
         val snap = db.collection("users").document(uid).get().await()
         if (!snap.exists()) return null
 
@@ -96,9 +97,7 @@ object UserRepository {
             .await()
     }
 
-    /**
-     * Obtiene el ÚLTIMO peso registrado (o null si no hay histórico)
-     */
+    //Se obtiene el último peso registrado
     suspend fun getLatestWeight(): Float? {
         val uid = auth.currentUser?.uid ?: return null
 

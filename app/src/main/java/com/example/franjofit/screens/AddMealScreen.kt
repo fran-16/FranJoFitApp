@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.franjofit.data.FoodRepository
+import com.example.franjofit.data.GoalsRepository
 import com.example.franjofit.reminders.SmpReminderManager
 import com.example.franjofit.ui.theme.CardBorderSoft
 import kotlinx.coroutines.launch
@@ -37,7 +38,8 @@ fun AddMealScreen(
 
     scannedName: String? = null,
     scannedKcal: Int? = null,
-    scannedPortion: String? = null
+    scannedPortion: String? = null,
+            onMealsSaved: () -> Unit = {}
 ) {
     val title = when (mealKey.lowercase()) {
         "desayuno" -> "Agregar desayuno"
@@ -54,7 +56,7 @@ fun AddMealScreen(
 
     var selectedItems by remember { mutableStateOf<List<FoodRepository.CatalogUiItem>>(emptyList()) }
 
-    // Si viene algo escaneado con la cámara/IA, se agrega a la lista
+
     LaunchedEffect(scannedName, scannedKcal, scannedPortion) {
         if (scannedName != null) {
             selectedItems = selectedItems + FoodRepository.CatalogUiItem(
@@ -79,7 +81,6 @@ fun AddMealScreen(
     var loading by remember { mutableStateOf(true) }
     var query by remember { mutableStateOf("") }
 
-    // Cargar catálogo
     LaunchedEffect(Unit) {
         loading = true
         try {
@@ -126,33 +127,38 @@ fun AddMealScreen(
         bottomBar = {
             if (selectedItems.isNotEmpty()) {
                 Button(
-                    onClick = {
+                 onClick = { //cambio
                         scope.launch {
                             try {
                                 isSaving = true
 
-                                // 1️⃣ Guardar la comida en Firebase
                                 FoodRepository.saveMealItems(
                                     context = context,
                                     mealType = mealKey.lowercase(),
                                     items = selectedItems
                                 )
-                                snackbar.showSnackbar("Guardado correctamente")
 
-                                // 2️⃣ Programar notificación a 1 minuto
+                                // 🔹 Recalcular SMP desde comidas y guardarlo en smpCurrent
+                                val newSmp = GoalsRepository.recalcTodaySmpFromMeals()
+
+                                snackbar.showSnackbar("Guardado correctamente (SMP: $newSmp)")
+
+                                // Programa notificación a 1 minuto
                                 SmpReminderManager.schedulePostprandialReminder(
                                     context = context,
-                                    minutes = 1L   // 👈 aquí 1 minuto
+                                    minutes = 1L
                                 )
 
-                                onBack()
+                                onMealsSaved()
+
                             } catch (e: Exception) {
                                 snackbar.showSnackbar("Error: ${e.message}")
                             } finally {
                                 isSaving = false
                             }
                         }
-                    },
+                    }
+                    ,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
